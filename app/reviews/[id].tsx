@@ -74,7 +74,6 @@ export default function ProductReviewComponent() {
 
   const fetchStats = async () => {
     try {
-      // ✨ Fix endpoint: /api/reviews/:productType/:productId/stats
       const url = `${BASE_URL}/review/${productType}/${id}/stats`;
       
       const response = await fetch(url);

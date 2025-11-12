@@ -176,12 +176,12 @@ const createStyles = (theme: any) => StyleSheet.create({
   menuButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: theme.background + '80', // Semi-transparent
+    backgroundColor: theme.background + '100',
   },
   notificationButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: theme.background + '80', // Semi-transparent
+    backgroundColor: theme.background + '100',
   },
   notificationIconContainer: {
     position: 'relative',
