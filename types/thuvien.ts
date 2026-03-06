@@ -1,9 +1,9 @@
 export interface ThuVien {
-  _id: string;
+  id: string;
   title: string;
-  videoId : string;
+  videoId: string;
   categoryThuVien?: {
-    _id: string;
+    id: string;
     name: string;
   };
   isActive?: boolean;

@@ -12,7 +12,6 @@ interface ChangePasswordFormData {
   confirmPassword: string;
 }
 
-// Di chuyển PasswordInput ra ngoài component chính
 const PasswordInput = ({
   field,
   label,

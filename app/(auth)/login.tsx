@@ -1,3 +1,4 @@
+import ErrorModal from '@/components/ErrorModal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from "expo-local-authentication";
@@ -25,6 +26,10 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+  });
+  const [errorModal, setErrorModal] = useState({
+    visible: false,
+    message: ''
   });
 
   const { login } = useAuth();
@@ -72,13 +77,19 @@ export default function LoginPage() {
     const { email, password } = formData;
 
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Lỗi', 'Email và mật khẩu không được để trống');
+      setErrorModal({
+        visible: true,
+        message: 'Email và mật khẩu không được để trống'
+      });
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Lỗi', 'Email không hợp lệ');
+      setErrorModal({
+        visible: true,
+        message: 'Email không hợp lệ'
+      })
       return false;
     }
 
@@ -93,7 +104,10 @@ export default function LoginPage() {
       await login(formData.email, formData.password);
       router.replace('/(drawer)/(tabs)/home');
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Đăng nhập thất bại');
+      setErrorModal({
+        visible: true,
+        message: error.message || 'Email hoặc mật khẩu không đúng'
+      });
     } finally {
       setLoading(false);
     }
@@ -111,7 +125,6 @@ export default function LoginPage() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.formCard}>
-          {/* Email Input */}
           <View style={styles.inputGroup}>
             <View style={styles.inputContainer}>
               <View style={styles.iconContainer}>
@@ -194,9 +207,16 @@ export default function LoginPage() {
           <Text style={styles.homeButtonText}>Vào ngay</Text>
         </TouchableOpacity>
       </ScrollView>
+      <ErrorModal
+        visible={errorModal.visible}
+        message={errorModal.message}
+        onClose={() => setErrorModal({ visible: false, message: '' })}
+        theme={theme}
+      />
     </KeyboardAvoidingView>
   );
 };
+
 
 const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: {

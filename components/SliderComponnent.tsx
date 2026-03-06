@@ -1,20 +1,20 @@
-import { useSlider } from '@/contexts/SliderContext';
-import React, { useEffect, useRef, useState } from 'react';
+import { useSlider } from "@/contexts/SliderContext";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Dimensions,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
-} from 'react-native';
-import Carousel, { ICarouselInstance } from 'react-native-reanimated-carousel';
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Carousel, { ICarouselInstance } from "react-native-reanimated-carousel";
 
 interface Slider {
-  _id: string;
+  id: string;
   title?: string;
-  image: string;
+  imageUrl: string;
   isActive: boolean;
 }
 
@@ -27,65 +27,62 @@ interface SliderComponentProps {
   borderRadius?: number;
 }
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get("window");
 
 const SliderComponent: React.FC<SliderComponentProps> = ({
   height = screenWidth * 0.5,
   autoPlay = true,
   autoPlayInterval = 3000,
   showIndicators = true,
-  borderRadius = 12
+  borderRadius = 12,
 }) => {
   const { sliders, loading, error, getSliders, clearError } = useSlider();
   const carouselRef = useRef<ICarouselInstance>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Handle slide change
   const handleSlideChange = (index: number) => {
     setCurrentIndex(index);
   };
 
-  // Handle indicator press
   const handleIndicatorPress = (index: number) => {
     setCurrentIndex(index);
     carouselRef.current?.scrollTo({ index, animated: true });
   };
 
-  // Retry loading sliders
   const handleRetry = () => {
     clearError();
     getSliders();
   };
 
-  // Reset index when sliders change
   useEffect(() => {
     if (sliders.length > 0) {
       setCurrentIndex(0);
     }
   }, [sliders]);
 
-  // Render slider item
-  const renderSliderItem = ({ item, index }: { item: Slider; index: number }) => {
-    // Always return a valid React element, even if item is missing
+  const renderSliderItem = ({
+    item,
+    index,
+  }: {
+    item: Slider;
+    index: number;
+  }) => {
     if (!item) {
       return <View style={styles.slide} />;
     }
-    
+
     return (
       <View style={styles.slide}>
-        <TouchableOpacity
-          style={styles.imageContainer}
-          activeOpacity={0.9}
-        >
+        <TouchableOpacity style={styles.imageContainer} activeOpacity={0.9}>
           <Image
-            source={{ uri: item.image }}
+            source={{ uri: item.imageUrl }}
             style={[
-              styles.sliderImage, 
-              { 
+              styles.sliderImage,
+              {
                 height: height,
                 borderRadius: borderRadius,
-                width: '100%'
-              }
+                width: "100%",
+              },
             ]}
             resizeMode="cover"
           />
@@ -119,7 +116,7 @@ const SliderComponent: React.FC<SliderComponentProps> = ({
   }
 
   if (sliders.length === 0) {
-    return null; // Don't render anything if no sliders
+    return null;
   }
 
   return (
@@ -128,7 +125,7 @@ const SliderComponent: React.FC<SliderComponentProps> = ({
         ref={carouselRef}
         width={screenWidth - 20}
         height={height}
-        data={sliders.filter(slider => slider && slider._id)}
+        data={sliders.filter((slider) => slider && slider.id)}
         renderItem={renderSliderItem}
         onSnapToItem={handleSlideChange}
         autoPlay={autoPlay && sliders.length > 1}
@@ -153,8 +150,11 @@ const SliderComponent: React.FC<SliderComponentProps> = ({
               style={[
                 styles.indicator,
                 {
-                  backgroundColor: index === currentIndex ? '#007AFF' : 'rgba(255, 255, 255, 0.5)'
-                }
+                  backgroundColor:
+                    index === currentIndex
+                      ? "#007AFF"
+                      : "rgba(255, 255, 255, 0.5)",
+                },
               ]}
               onPress={() => handleIndicatorPress(index)}
             />
@@ -168,66 +168,66 @@ const SliderComponent: React.FC<SliderComponentProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginVertical: 10,
-    position: 'relative',
+    position: "relative",
     paddingHorizontal: 10,
   },
   carousel: {
-    width: '100%',
+    width: "100%",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
     borderRadius: 12,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 14,
-    color: '#666666',
+    color: "#666666",
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
     borderRadius: 12,
   },
   errorText: {
     fontSize: 16,
-    color: '#FF6B6B',
+    color: "#FF6B6B",
     marginBottom: 10,
   },
   retryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
   },
   retryButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   slide: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
   },
   imageContainer: {
-    width: '100%',
-    position: 'relative',
+    width: "100%",
+    position: "relative",
   },
   sliderImage: {
-    width: '100%',
+    width: "100%",
   },
   overlay: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
     paddingVertical: 15,
     paddingHorizontal: 15,
   },
@@ -236,21 +236,21 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: "bold",
+    color: "#FFFFFF",
     marginBottom: 5,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
   indicatorContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 15,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
   indicator: {
     width: 8,

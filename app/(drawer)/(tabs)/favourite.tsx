@@ -1,4 +1,4 @@
-import { useFavourite } from '@/contexts/FavouriteContext';
+import { AnyFavouriteProduct, useFavourite } from '@/contexts/FavouriteContext';
 import { Colors, useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import {
   FlatList,
   Image,
   ListRenderItem,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -20,28 +21,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useScrollTabHide } from './_layout';
-
-interface ProductImage {
-  url: string;
-  imageId: string;
-}
-
-interface FavouriteProduct {
-  _id: string;
-  name: string;
-  images: ProductImage[];
-  category?: {
-    _id: string;
-    name: string;
-  };
-  isMoi: boolean;
-  average_rating?: number;
-  rating_count?: number;
-  favouriteId: string;
-  favouriteAt: string;
-  isFavourite: true;
-  productType: 'Product' | 'ProductNongNghiepDoThi' | 'ProductConTrungGiaDung';
-}
 
 type NavigationProp = {
   navigate: (screen: string, params?: any) => void;
@@ -60,7 +39,6 @@ const FavouriteScreen: React.FC = () => {
     pagination,
     getFavourites,
     toggleFavourite,
-    loadMoreFavourites,
     refreshFavourites,
     clearError,
   } = useFavourite();
@@ -69,19 +47,25 @@ const FavouriteScreen: React.FC = () => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const { handleScroll } = useScrollTabHide();
 
-  // Create dynamic styles using theme
+  const [confirmModal, setConfirmModal] = useState<{
+    visible: boolean;
+    productId: string;
+    productName: string;
+    productType: 'Product' | 'ProductNongNghiepDoThi' | 'ProductConTrungGiaDung';
+  }>({ visible: false, productId: '', productName: '', productType: 'Product' });
+
   const styles = createStyles(theme);
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(scaleAnim, {
-          toValue: 1.2, // phóng to
+          toValue: 1.2,
           duration: 600,
           useNativeDriver: true,
         }),
         Animated.timing(scaleAnim, {
-          toValue: 1, // thu nhỏ lại
+          toValue: 1,
           duration: 600,
           useNativeDriver: true,
         }),
@@ -90,7 +74,6 @@ const FavouriteScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Load favourites when screen focuses
     const unsubscribe = navigation.addListener('focus', () => {
       getFavourites();
     });
@@ -98,60 +81,52 @@ const FavouriteScreen: React.FC = () => {
     return unsubscribe;
   }, [navigation, getFavourites]);
 
-  const handleRemoveFavourite = async (productId: string, productName: string, productType: 'Product' | 'ProductNongNghiepDoThi' | 'ProductConTrungGiaDung'): Promise<void> => {
-    Alert.alert(
-      'Xóa khỏi yêu thích',
-      `Bạn có chắc chắn muốn xóa "${productName}" khỏi danh sách yêu thích?`,
-      [
-        {
-          text: 'Hủy',
-          style: 'cancel'
-        },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: async () => {
-            setRemovingItems(prev => new Set([...prev, productId]));
-            try {
-              await toggleFavourite(productId, productType);
-            } catch (error) {
-              Alert.alert('Lỗi', 'Không thể xóa sản phẩm khỏi yêu thích');
-            } finally {
-              setRemovingItems(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(productId);
-                return newSet;
-              });
-            }
-          }
-        }
-      ]
-    );
+  const handleRemoveFavourite = (productId: string, productName: string, productType: 'Product' | 'ProductNongNghiepDoThi' | 'ProductConTrungGiaDung'): void => {
+    setConfirmModal({ visible: true, productId, productName, productType });
   };
 
-  const getImageUri = (item: FavouriteProduct): string => {
+  const confirmRemove = async (): Promise<void> => {
+    const { productId, productType } = confirmModal;
+    setConfirmModal(prev => ({ ...prev, visible: false }));
+    setRemovingItems(prev => new Set([...prev, productId]));
+    try {
+      await toggleFavourite(productId, productType);
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể xóa sản phẩm yêu thích');
+    } finally {
+      setRemovingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      })
+    }
+  }
+
+  const getImageUri = (item: AnyFavouriteProduct): string => {
     if (item.images && item.images.length > 0) {
-      return item.images[0].url; // lấy url đầu tiên
+      const img = item.images[0];
+      return img.imageUrl || img.url || 'https://via.placeholder.com/100';
     }
     return 'https://via.placeholder.com/100';
   };
 
-  const handleProductPress = (product: FavouriteProduct): void => {
+
+  const handleProductPress = (product: AnyFavouriteProduct): void => {
     switch (product.productType) {
       case 'Product':
-        router.push(`/product/${product._id}`);
+        router.push(`/product/${product.id}`);
         break;
       case 'ProductNongNghiepDoThi':
-        router.push(`/nndt/${product._id}`);
+        router.push(`/nndt/${product.id}`);
         break;
       case 'ProductConTrungGiaDung':
-        router.push(`/ctgd/${product._id}`);
+        router.push(`/ctgd/${product.id}`);
         break;
     }
   };
 
-  const renderFavouriteItem: ListRenderItem<FavouriteProduct> = ({ item }) => {
-    const isRemoving = removingItems.has(item._id);
+  const renderFavouriteItem: ListRenderItem<AnyFavouriteProduct> = ({ item }) => {
+    const isRemoving = removingItems.has(item.id);
 
     return (
       <TouchableOpacity
@@ -198,7 +173,7 @@ const FavouriteScreen: React.FC = () => {
 
         <TouchableOpacity
           style={styles.removeButton}
-          onPress={() => handleRemoveFavourite(item._id, item.name, item.productType)}
+          onPress={() => handleRemoveFavourite(item.id, item.name, item.productType)}
           disabled={isRemoving}
         >
           {isRemoving ? (
@@ -294,7 +269,7 @@ const FavouriteScreen: React.FC = () => {
           scrollEventThrottle={16}
           data={favourites}
           renderItem={renderFavouriteItem}
-          keyExtractor={(item) => item._id}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -305,11 +280,6 @@ const FavouriteScreen: React.FC = () => {
               tintColor={theme.primary}
             />
           }
-          onEndReached={() => {
-            if (pagination.page < pagination.pages && !loading) {
-              loadMoreFavourites();
-            }
-          }}
           onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
         />
@@ -321,6 +291,51 @@ const FavouriteScreen: React.FC = () => {
           <Text style={styles.loaderText}>Đang tải...</Text>
         </View>
       )}
+      <Modal
+        visible={confirmModal.visible}
+        transparent
+        animationType='fade'
+        onRequestClose={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Icon */}
+            <View style={styles.modalIconWrapper}>
+              <Icon name="favorite" size={36} color={theme.error} />
+            </View>
+
+            {/* Title */}
+            <Text style={styles.modalTitle}>Xóa khỏi yêu thích?</Text>
+
+            {/* Product name */}
+            <Text style={styles.modalProductName} numberOfLines={2}>
+              {confirmModal.productName}
+            </Text>
+
+            <Text style={styles.modalMessage}>
+              Sản phẩm này sẽ bị xóa khỏi danh sách yêu thích của bạn.
+            </Text>
+
+            {/* Buttons */}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
+              >
+                <Text style={styles.modalCancelText}>Giữ lại</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={confirmRemove}
+              >
+                <Icon name="delete" size={16} color="#fff" style={{ marginRight: 6 }} />
+                <Text style={styles.modalConfirmText}>Xóa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -521,7 +536,91 @@ const createStyles = (theme: Colors) => StyleSheet.create({
     marginLeft: 10,
     fontSize: 14,
     color: theme.textSecondary
-  }
+  },
+
+  //modal remove
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+  },
+  modalContainer: {
+    backgroundColor: theme.card,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalIconWrapper: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: theme.error + '18',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.text,
+    marginBottom: 8,
+  },
+  modalProductName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.primary,
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: theme.border,
+    alignItems: 'center',
+    backgroundColor: theme.surface,
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  modalConfirmButton: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: theme.error,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  modalConfirmText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+  },
 });
 
 export default FavouriteScreen;

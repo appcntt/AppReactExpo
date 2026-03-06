@@ -1,21 +1,26 @@
 export interface ImageCTGD {
-  url: string;
-  imageId: string;
+  id: number;
+  productId: number;
+  imageType: string;
+  imageName: string;
+  imageSize: number;
+  imageUrl: string | null;
+  url?: string;
 }
 
 export interface CategoryCTGD {
-  _id: string;
+  id: string;
   name: string;
 }
 
 export interface CTGD {
-  _id: string;
+  id: string;
   name: string;
   description: string;
   average_rating?: number;
   rating_count?: number;
   images?: ImageCTGD[];
-  categoryctgd?:CategoryCTGD;
+  categoryctgd?: CategoryCTGD;
   isActive?: boolean;
   isMoi?: boolean;
   createdAt: string;

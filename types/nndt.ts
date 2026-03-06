@@ -1,21 +1,26 @@
 export interface ImageNNDT {
-  url: string;
-  imageId: string;
+  id: number;
+  productId: number;
+  imageType: string;
+  imageName: string;
+  imageSize: number;
+  imageUrl: string | null;
+  url?: string;
 }
 
 export interface CategoryNNDT {
-  _id: string;
+  id: string;
   name: string;
 }
 
 export interface NNDT {
-  _id: string;
+  id: string;
   name: string;
   description: string;
   average_rating?: number;
   rating_count?: number;
   images?: ImageNNDT[];
-  categorynndt?:CategoryNNDT;
+  categorynndt?: CategoryNNDT;
   isActive?: boolean;
   isMoi?: boolean;
   createdAt: string;

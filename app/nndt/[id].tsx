@@ -170,8 +170,9 @@ export default function ProductDetailScreen() {
     const modalImage = images[modalImageIndex];
 
     const getImageUrl = (image: any) => {
-        if (!image) return '';
-        return typeof image === 'string' ? image : image.url || '';
+        if (!image) return "";
+        if (typeof image === "string") return image;
+        return image.imageUrl || image.url || "";
     };
 
     const renderHeader = () => (
@@ -265,9 +266,9 @@ export default function ProductDetailScreen() {
         <View style={styles.infoSection}>
             <Text style={styles.productTitle}>{product.name}</Text>
 
-            {product.category && (
+            {product.categoryName && (
                 <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryBadgeText}>{product.category.name}</Text>
+                    <Text style={styles.categoryBadgeText}>{product.categoryName}</Text>
                 </View>
             )}
 
@@ -316,7 +317,7 @@ export default function ProductDetailScreen() {
             <TouchableOpacity style={styles.writeButton} onPress={() => router.push({
                 pathname: '/reviews/[id]',
                 params: {
-                    id: product._id,
+                    id: product.id,
                     productType: 'ProductNongNghiepDoThi',
                 },
             })}>

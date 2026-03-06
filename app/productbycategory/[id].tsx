@@ -21,17 +21,30 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type ProductImage = {
-    url: string;
-    imageId: string;
+    productId: number;
+    imageType: string;
+    imageName: string;
+    imageSize: number;
+    imageUrl: string | null;
+    url?: string;
 }
 
 type Product = {
-    _id: string;
+    id: string;
     name: string;
     images: ProductImage[];
     isMoi: boolean;
     isActive: boolean;
 };
+
+interface ProductCardProps {
+    item: Product;
+    index: number;
+    theme: Colors;
+    toggleFavourite: (id: string, type: "Product" | "ProductNongNghiepDoThi" | "ProductConTrungGiaDung") => Promise<any>;
+    isFavourite: (id: string) => boolean;
+    router: ReturnType<typeof useRouter>;
+}
 
 export default function ProductByCategoryScreen() {
     const { theme, isDark } = useTheme();
@@ -50,7 +63,7 @@ export default function ProductByCategoryScreen() {
             if (!refreshing) setLoading(true);
             const res = await fetch(`${BASE_URL}/product/category/${id}?search=${search}`);
             const data = await res.json();
-            setProducts(data.data?.products || []);
+            setProducts(data.data);
         } catch (error) {
             console.error("Error fetching products:", error);
         } finally {
@@ -77,27 +90,39 @@ export default function ProductByCategoryScreen() {
         setRefreshing(false);
     };
 
-    const renderItem = ({ item, index }: { item: Product; index: number }) => {
-        const styles = createStyles(theme);
-        const handleProductPress = () => {
-            router.push(`/product/${item._id}`);
-        };
+    const ProductCard = ({ item, index, theme, toggleFavourite, isFavourite, router }: ProductCardProps) => {
+        const styles = useMemo(() => createStyles(theme), [theme]);
+
+        const firstImage = useMemo(() => {
+            if (!Array.isArray(item.images) || item.images.length === 0) return null;
+            const img = item.images[0];
+            if (typeof img === "string") return img;
+            return img.imageUrl || img.url || null;
+        }, [item.images]);
 
         return (
             <TouchableOpacity
-                style={[
-                    styles.card,
-                    { marginLeft: index % 2 === 0 ? 0 : 8 }
-                ]}
-                onPress={handleProductPress}
+                style={[styles.card, { marginLeft: index % 2 === 0 ? 0 : 8 }]}
+                onPress={() => router.push(`/product/${item.id}`)}
                 activeOpacity={0.9}
             >
                 <View style={styles.imageContainer}>
-                    <Image
-                        source={{ uri: item.images[0].url }}
-                        style={styles.productImage}
-                        resizeMode="cover"
-                    />
+                    {firstImage ? (
+                        <Image
+                            source={{ uri: firstImage }}
+                            style={styles.productImage}
+                            resizeMode="cover"
+                        />
+                    ) : (
+                        <View style={styles.placeholderImage}>
+                            <Ionicons
+                                name="image-outline"
+                                size={32}
+                                color={theme.textSecondary}
+                            />
+                            <Text style={styles.placeholderText}>No Image</Text>
+                        </View>
+                    )}
 
                     {/* Gradient overlay */}
                     <View style={styles.imageOverlay} />
@@ -113,7 +138,7 @@ export default function ProductByCategoryScreen() {
                     <TouchableOpacity
                         onPress={async () => {
                             try {
-                                await toggleFavourite(item._id, "Product")
+                                await toggleFavourite(item.id, "Product")
                                 router.push('/(drawer)/(tabs)/favourite')
                             } catch (error) {
                                 console.log("Toggle failed", error)
@@ -121,13 +146,13 @@ export default function ProductByCategoryScreen() {
                         }}
                         style={[
                             styles.favoriteButton,
-                            isFavourite(item._id) && styles.favoriteButtonActive
+                            isFavourite(item.id) && styles.favoriteButtonActive
                         ]}
                     >
                         <Ionicons
-                            name={isFavourite(item._id) ? "heart" : "heart-outline"}
+                            name={isFavourite(item.id) ? "heart" : "heart-outline"}
                             size={16}
-                            color={isFavourite(item._id) ? "white" : theme.error}
+                            color={isFavourite(item.id) ? "white" : theme.error}
                         />
                     </TouchableOpacity>
                 </View>
@@ -139,6 +164,24 @@ export default function ProductByCategoryScreen() {
                     </Text>
                 </View>
             </TouchableOpacity>
+        );
+    };
+
+    const renderItem = ({ item, index }: { item: Product; index: number }) => {
+        // const styles = createStyles(theme);
+        // const handleProductPress = () => {
+        //     router.push(`/product/${item.id}`);
+        // };
+
+        return (
+            <ProductCard
+                item={item}
+                index={index}
+                theme={theme}
+                toggleFavourite={toggleFavourite}
+                isFavourite={isFavourite}
+                router={router}
+            />
         );
     };
 
@@ -212,7 +255,7 @@ export default function ProductByCategoryScreen() {
             {/* Products grid */}
             <FlatList
                 data={filteredBSCTs}
-                keyExtractor={(item) => `${item._id}-${isDark}`}
+                keyExtractor={(item) => `${item.id}-${isDark}`}
                 extraData={isDark}
                 renderItem={renderItem}
                 numColumns={2}
@@ -240,6 +283,24 @@ const createStyles = (theme: Colors) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.background,
+    },
+    //images
+    placeholderImage: {
+        width: "100%",
+        height: "100%",
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: theme.surface,
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderStyle: "dashed",
+    },
+
+    placeholderText: {
+        fontSize: 12,
+        color: theme.textSecondary,
+        fontWeight: "500",
+        marginTop: 4,
     },
 
     // Loading

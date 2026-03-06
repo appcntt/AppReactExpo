@@ -13,7 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// ============== CONTEXT SETUP ==============
+
 interface TabVisibilityContextType {
   hideTabBar: () => void;
   showTabBar: () => void;
@@ -39,7 +39,6 @@ export const useTabVisibility = () => {
   return context;
 };
 
-// ============== TAB ITEM COMPONENT ==============
 function TabItem({ 
   route, 
   isFocused, 
@@ -92,7 +91,7 @@ function TabItem({
   );
 }
 
-// ============== FLOATING TAB BAR ==============
+
 const FloatingTabBar = React.memo(({ state, descriptors, navigation }: any) => {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -104,18 +103,18 @@ const FloatingTabBar = React.memo(({ state, descriptors, navigation }: any) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const indicatorTranslateX = useSharedValue(0);
 
-  // Animate indicator khi đổi tab
+
   useEffect(() => {
     if (containerWidth === 0) return;
     const tabWidth = (containerWidth - 64) / state.routes.length;
-    const targetX = state.index * tabWidth + tabWidth / 2 - 20; // 20 = half indicator (40/2)
+    const targetX = state.index * tabWidth + tabWidth / 2 - 20;
     indicatorTranslateX.value = withTiming(targetX, {
       duration: 250,
       easing: Easing.out(Easing.ease),
     });
   }, [state.index, containerWidth]);
 
-  // Context setup
+
   const contextValue = useMemo(() => {
     const hideTabBar = () => {
       isVisible.value = false;
@@ -177,7 +176,7 @@ const FloatingTabBar = React.memo(({ state, descriptors, navigation }: any) => {
     };
   });
 
-  // Dynamic shadow style based on theme
+
   const shadowStyle = isDark ? {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
@@ -220,7 +219,6 @@ const FloatingTabBar = React.memo(({ state, descriptors, navigation }: any) => {
               paddingHorizontal: 32,
               paddingVertical: 16,
               width: '100%',
-              // Add border for dark theme
               ...(isDark && {
                 borderWidth: 1,
                 borderColor: theme.border,
@@ -263,7 +261,6 @@ const FloatingTabBar = React.memo(({ state, descriptors, navigation }: any) => {
           })}
         </Animated.View>
         
-        {/* Active Tab Indicator */}
         <Animated.View
           style={[
             {
@@ -271,9 +268,7 @@ const FloatingTabBar = React.memo(({ state, descriptors, navigation }: any) => {
               top: -4,
               width: 40,
               height: 3,
-              // backgroundColor: theme.primary,
               borderRadius: 2,
-              // Add glow effect for dark theme
               ...(isDark && {
                 shadowColor: theme.primary,
                 shadowOffset: { width: 0, height: 0 },
@@ -291,17 +286,16 @@ const FloatingTabBar = React.memo(({ state, descriptors, navigation }: any) => {
 
 FloatingTabBar.displayName = 'FloatingTabBar';
 
-// ============== TAB LAYOUT ==============
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <FloatingTabBar {...props} />}
     >
-      <Tabs.Screen name="home" options={{ title: "Home" }} />
+      <Tabs.Screen name="home" options={{ title: "Trang chủ" }} />
       <Tabs.Screen 
         name="product" 
-        options={{ title: "Product" }} 
+        options={{ title: "Sản phẩm" }} 
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
@@ -309,13 +303,12 @@ export default function TabLayout() {
           },
         }} 
       />
-      <Tabs.Screen name="favourite" options={{ title: "Wishlist" }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+      <Tabs.Screen name="favourite" options={{ title: "Yêu thích" }} />
+      <Tabs.Screen name="profile" options={{ title: "Tài khoản" }} />
     </Tabs>
   );
 }
 
-// ============== HOOKS ==============
 export const useScrollTabHide = () => {
   const context = useTabVisibility();
   

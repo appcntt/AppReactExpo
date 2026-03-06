@@ -1,6 +1,12 @@
-import { BASE_URL } from '@env';
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { ApiParams, ApiResponse, Category, Product } from '../types/product';
+import { BASE_URL } from "@env";
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { ApiParams, ApiResponse, Category, Product } from "../types/product";
 
 interface ProductContextType {
   products: Product[];
@@ -33,46 +39,59 @@ interface ProductContextType {
     categoryId: string,
     page?: number,
     pageSize?: number,
-    search?: string
+    search?: string,
   ) => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
-// API functions
 const api = {
-  baseUrl: BASE_URL, // Replace with your actual API URL
+  baseUrl: BASE_URL,
 
   async getProducts(params: ApiParams = {}): Promise<ApiResponse> {
-    const { page = 1, pageSize = 12, search = '', category = '' } = params;
+    const { page = 1, pageSize = 12, search = "" } = params;
 
     const queryParams = new URLSearchParams({
       page: page.toString(),
       pageSize: pageSize.toString(),
       ...(search && { search }),
-      ...(category && category !== 'all' && { category })
     });
 
     try {
       const response = await fetch(`${this.baseUrl}/product?${queryParams}`);
       const data = await response.json();
+      if (data.success && data.data) {
+        return {
+          products: data.data,
+          total: data.count || data.data.length,
+          page,
+          pagination: {
+            currentPage: page,
+            totalPages: Math.ceil((data.count || data.data.length) / pageSize),
+            totalProducts: data.count || data.data.length,
+            hasMore: false,
+          },
+        };
+      }
       return data;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error("API Error:", error);
       throw error;
     }
   },
 
   async getNewProducts(limit: number = 10): Promise<Product[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/product/new?limit=${limit}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const response = await fetch(
+        `${this.baseUrl}/product/new?limit=${limit}`,
+      );
       const data = await response.json();
-      return Array.isArray(data) ? data : data.products || [];
+
+      if (data.success && data.data) return data.data;
+      if (Array.isArray(data)) return data;
+      return data.products || [];
     } catch (error) {
-      console.error('API Error - New Products:', error);
+      console.error("API Error - New Products:", error);
       throw error;
     }
   },
@@ -82,23 +101,25 @@ const api = {
       const response = await fetch(`${this.baseUrl}/categories`);
       const data = await response.json();
       const categoryList = Array.isArray(data) ? data : data.categories || [];
-      return [{ _id: 'all', name: 'Tất cả' }, ...categoryList];
+      return [{ id: "all", name: "Tất cả" }, ...categoryList];
     } catch (error) {
-      console.error('API Error:', error);
-      // Fallback categories
+      console.error("API Error:", error);
       return [
-        { _id: 'all', name: 'All Products' },
-        { _id: 'electronics', name: 'Electronics' },
-        { _id: 'clothing', name: 'Clothing' },
-        { _id: 'books', name: 'Books' },
-        { _id: 'home', name: 'Home & Garden' },
-        { _id: 'sports', name: 'Sports' }
+        { id: "all", name: "All Products" },
+        { id: "electronics", name: "Electronics" },
+        { id: "clothing", name: "Clothing" },
+        { id: "books", name: "Books" },
+        { id: "home", name: "Home & Garden" },
+        { id: "sports", name: "Sports" },
       ];
     }
   },
 
-  async getProductsByCategory(categoryId: string, params: ApiParams = {}): Promise<ApiResponse> {
-    const { page = 1, pageSize = 12, search = '' } = params;
+  async getProductsByCategory(
+    categoryId: string,
+    params: ApiParams = {},
+  ): Promise<ApiResponse> {
+    const { page = 1, pageSize = 12, search = "" } = params;
 
     const queryParams = new URLSearchParams({
       page: page.toString(),
@@ -107,11 +128,26 @@ const api = {
     });
 
     try {
-      const response = await fetch(`${this.baseUrl}/product/category/${categoryId}?${queryParams}`);
+      const response = await fetch(
+        `${this.baseUrl}/product/category/${categoryId}?${queryParams}`,
+      );
       const data = await response.json();
+      if (data.success && data.data) {
+        return {
+          products: data.data,
+          total: data.count || data.data.length,
+          page,
+          pagination: {
+            currentPage: page,
+            totalPages: Math.ceil((data.count || data.data.length) / pageSize),
+            totalProducts: data.count || data.data.length,
+            hasMore: false,
+          },
+        };
+      }
       return data;
     } catch (error) {
-      console.error('API Error - Category:', error);
+      console.error("API Error - Category:", error);
       throw error;
     }
   },
@@ -128,8 +164,8 @@ export function ProductProvider({ children }: ProductProviderProps) {
   const [newProducts, setNewProducts] = useState<Product[]>([]);
   const [newProductsLoading, setNewProductsLoading] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalProducts, setTotalProducts] = useState<number>(0);
@@ -145,18 +181,27 @@ export function ProductProvider({ children }: ProductProviderProps) {
   const loadProducts = async (): Promise<void> => {
     setLoading(true);
     try {
-      const response = await api.getProducts({
-        page: currentPage,
-        pageSize,
-        search: searchQuery,
-        category: selectedCategory
-      });
+      let response: ApiResponse;
+
+      if (selectedCategory && selectedCategory !== "all") {
+        response = await api.getProductsByCategory(selectedCategory, {
+          page: currentPage,
+          pageSize,
+          search: searchQuery,
+        });
+      } else {
+        response = await api.getProducts({
+          page: currentPage,
+          pageSize,
+          search: searchQuery,
+        });
+      }
 
       setProducts(response.products || []);
       setTotalProducts(response.total || 0);
       setTotalPages(Math.ceil((response.total || 0) / pageSize));
     } catch (error) {
-      console.error('Error loading products:', error);
+      console.error("Error loading products:", error);
       setProducts([]);
     } finally {
       setLoading(false);
@@ -167,7 +212,7 @@ export function ProductProvider({ children }: ProductProviderProps) {
     categoryId: string,
     page: number = 1,
     pageSize: number = 12,
-    search: string = ''
+    search: string = "",
   ): Promise<void> => {
     setCategoryLoading(true);
     try {
@@ -184,13 +229,12 @@ export function ProductProvider({ children }: ProductProviderProps) {
         totalProducts: response.pagination?.totalProducts || 0,
       });
     } catch (error) {
-      console.error('Error loading products by category:', error);
+      console.error("Error loading products by category:", error);
       setCategoryProducts([]);
     } finally {
       setCategoryLoading(false);
     }
   };
-
 
   const loadNewProducts = async (limit: number = 10): Promise<void> => {
     setNewProductsLoading(true);
@@ -198,7 +242,7 @@ export function ProductProvider({ children }: ProductProviderProps) {
       const response = await api.getNewProducts(limit);
       setNewProducts(response);
     } catch (error) {
-      console.error('Error loading new products:', error);
+      console.error("Error loading new products:", error);
       setNewProducts([]);
     } finally {
       setNewProductsLoading(false);
@@ -210,7 +254,7 @@ export function ProductProvider({ children }: ProductProviderProps) {
       const response = await api.getNewProducts(10);
       setNewProducts(response);
     } catch (error) {
-      console.error('Error refreshing new products:', error);
+      console.error("Error refreshing new products:", error);
     }
   };
 
@@ -219,7 +263,7 @@ export function ProductProvider({ children }: ProductProviderProps) {
       const response = await api.getCategories();
       setCategories(response);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error("Error loading categories:", error);
     }
   };
 
@@ -233,7 +277,7 @@ export function ProductProvider({ children }: ProductProviderProps) {
   }, [currentPage, searchQuery, selectedCategory]);
 
   const toggleFavorite = (productId: string): void => {
-    setFavorites(prev => {
+    setFavorites((prev) => {
       const newFavorites = new Set(prev);
       if (newFavorites.has(productId)) {
         newFavorites.delete(productId);
@@ -255,10 +299,9 @@ export function ProductProvider({ children }: ProductProviderProps) {
   };
 
   const getProduct = (productId: string): Product | undefined => {
-    // return products.find(product => product._id === productId);
-    let product = products.find(p => p._id === productId);
+    let product = products.find((p) => p.id === productId);
     if (!product) {
-      product = newProducts.find(p => p._id === productId);
+      product = newProducts.find((p) => p.id === productId);
     }
     return product;
   };
@@ -289,21 +332,24 @@ export function ProductProvider({ children }: ProductProviderProps) {
   };
 
   return (
-    <ProductContext.Provider value={value}>
-      {children}
-    </ProductContext.Provider>
+    <ProductContext.Provider value={value}>{children}</ProductContext.Provider>
   );
 }
 
 export const useProduct = (): ProductContextType => {
   const context = useContext(ProductContext);
   if (context === undefined) {
-    throw new Error('useProduct must be used within a ProductProvider');
+    throw new Error("useProduct must be used within a ProductProvider");
   }
   return context;
 };
 
-export const useProductsByCategory = (categoryId: string, page: number = 1, pageSize: number = 12, search: string = '') => {
+export const useProductsByCategory = (
+  categoryId: string,
+  page: number = 1,
+  pageSize: number = 12,
+  search: string = "",
+) => {
   const {
     categoryProducts,
     categoryLoading,
@@ -312,7 +358,7 @@ export const useProductsByCategory = (categoryId: string, page: number = 1, page
   } = useProduct();
 
   useEffect(() => {
-    if (categoryId && categoryId !== 'all') {
+    if (categoryId && categoryId !== "all") {
       loadProductsByCategory(categoryId, page, pageSize, search);
     }
   }, [categoryId, page, pageSize, search]);

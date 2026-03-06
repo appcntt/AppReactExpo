@@ -15,7 +15,6 @@ import { useNotificationActions, useNotificationData } from '@/contexts/Notifica
 import { Colors, useTheme } from '@/contexts/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Component cho từng notification item
 const NotificationItem = ({
   notification,
   onPress,
@@ -232,11 +231,11 @@ const NotificationsScreen = () => {
         >
           {filteredNotifications.map(notification => (
             <NotificationItem
-              key={notification._id}
+              key={notification.id}
               notification={notification}
-              onPress={() => markAsRead(notification._id)}
-              onMarkAsRead={() => markAsRead(notification._id)}
-              onDelete={() => deleteNotification(notification._id)}
+              onPress={() => markAsRead(notification.id)}
+              onMarkAsRead={() => markAsRead(notification.id)}
+              onDelete={() => deleteNotification(notification.id)}
               theme={theme}
             />
           ))}

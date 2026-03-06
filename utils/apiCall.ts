@@ -30,7 +30,6 @@ export const apiCall = async <T = any>({
   try {
     let url = `${BASE_URL}${endpoint}`;
 
-    // Add query parameters if provided
     if (params && Object.keys(params).length > 0) {
       const queryString = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
@@ -41,13 +40,11 @@ export const apiCall = async <T = any>({
       url += `?${queryString.toString()}`;
     }
 
-    // Prepare headers
     const requestHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       ...headers,
     };
 
-    // Add authorization header if required
     if (requireAuth) {
       let token = await AsyncStorage.getItem("token");
 
@@ -59,34 +56,25 @@ export const apiCall = async <T = any>({
         }
       }
 
-      // console.log("Token found:", !!token); // Debug log
-
       if (token) {
         requestHeaders["Authorization"] = `Bearer ${token}`;
-        // console.log(
-        //   "Authorization header set with token:",
-        //   token.substring(0, 20) + "..."
-        // ); // Debug log (first 20 chars only)
       } else {
         console.log(
-          "No authentication token found in both AsyncStorage and SecureStore"
+          "No authentication token found in both AsyncStorage and SecureStore",
         );
         throw new Error("Authentication required. Please login.");
       }
     }
 
-    // Prepare request options
     const requestOptions: RequestInit = {
       method,
       headers: requestHeaders,
     };
 
-    // Add body for POST, PUT, PATCH requests
     if (data && ["POST", "PUT", "PATCH"].includes(method)) {
       requestOptions.body = JSON.stringify(data);
     }
 
-    // Make the request
     const response = await fetch(url, requestOptions);
     const responseData = await response.json();
 
@@ -104,49 +92,14 @@ export const apiCall = async <T = any>({
         } else {
           console.log("Skipping token clear for check endpoint");
         }
-        // await SecureStore.deleteItemAsync("token");
-        // await AsyncStorage.removeItem("token");
-        // await AsyncStorage.removeItem("user");
-        // Alert.alert(
-        //   "Phiên đăng nhập hết hạn",
-        //   "Vui lòng đăng nhập lại để sử dụng toàn bộ tính năng",
-        //   [
-        //     {
-        //       text: "OK",
-        //       onPress: () => {
-        //         router.push("/(auth)/login");
-        //       },
-        //     },
-        //   ]
-        // );
-        // throw new Error(
-        //   "Đăng nhập đã hết hạn, vui lòng đăng nhập lại để sử dụng toàn bộ tính năng"
-        // );
       }
 
       throw new Error(
-        responseData.message || responseData.error || `HTTP ${response.status}`
+        responseData.message || responseData.error || `HTTP ${response.status}`,
       );
     }
   } catch (error) {
     console.log("API Call Error:", error);
-    // Alert.alert(
-    //   'Thông báo',
-    //   `Đăng nhập của bạn đã hết hạn để sử dụng được tất cả tính năng của ứng dụng hãy đăng nhập lại`,
-    //   [
-    //     {
-    //       text: 'Hủy',
-    //       style: 'cancel'
-    //     },
-    //     {
-    //       text: 'Đăng nhập',
-    //       style: 'destructive',
-    //       onPress: async () => {
-    //         router.push('/(auth)/login')
-    //       }
-    //     }
-    //   ]
-    // );
 
     if (error instanceof Error) {
       return {

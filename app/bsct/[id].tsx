@@ -1,14 +1,16 @@
-// app/bsct/[id].tsx
 import HtmlDescription from "@/components/HtmlDescription";
+import { useAuth } from "@/contexts/AuthContext";
+import { useBSCT } from "@/contexts/BsctContext";
 import { Colors, useTheme } from '@/contexts/ThemeContext';
 import { BSCT } from "@/types/bsct";
 import { apiCall } from "@/utils/apiCall";
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
+    Animated,
     Dimensions,
+    Easing,
     Image,
     ScrollView,
     Share,
@@ -16,16 +18,16 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from "react-native";
 
 const { width } = Dimensions.get('window');
 
 interface BSCTDetailProps {
-    // Có thể thêm props nếu cần
 }
 
 export default function BSCTDetailScreen({ }: BSCTDetailProps) {
+    const { user } = useAuth();
     const { theme, isDark } = useTheme();
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -33,9 +35,44 @@ export default function BSCTDetailScreen({ }: BSCTDetailProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isLiked, setIsLiked] = useState(false);
+    const [likeCount, setLikeCount] = useState(0);
+
+    const { isBookmarked, toggleBookmark } = useBSCT();
+
+    const bookmarkScale = useRef(new Animated.Value(1)).current;
+    const bookmarked = isBookmarked(String(id));
+
+    //like
+    const likeScale = useRef(new Animated.Value(1)).current;
+    const likeRotate = useRef(new Animated.Value(0)).current;
+
+    //loading
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const pulseValue = useRef(new Animated.Value(1)).current;
 
     const styles = createStyles(theme);
 
+    const handleBookmark = async () => {
+        if (!user?.id) {
+            alert("Vui lòng đăng nhập để lưu bài viết");
+            return;
+        }
+
+        Animated.sequence([
+            Animated.spring(bookmarkScale, {
+                toValue: 1.4,
+                useNativeDriver: true,
+                speed: 50,
+            }),
+            Animated.spring(bookmarkScale, {
+                toValue: 1,
+                useNativeDriver: true,
+                speed: 20,
+            }),
+        ]).start();
+
+        await toggleBookmark(String(id));
+    };
     const fetchBSCTDetail = async () => {
         try {
             setLoading(true);
@@ -48,7 +85,24 @@ export default function BSCTDetailScreen({ }: BSCTDetailProps) {
             });
 
             if (success && data) {
-                setBsct(data);
+                const bsctData = (data as any)?.data ?? data;
+                setBsct({
+                    ...bsctData,
+                    id: String(bsctData.id),
+                    imageUrl: bsctData.imageUrl || null,
+                });
+
+                const likeRes = await apiCall({
+                    endpoint: `/bsct/${id}/like-status`,
+                    method: 'GET',
+                    requireAuth: false,
+                    params: { userId: user?.id },
+                });
+
+                if (likeRes.success) {
+                    setIsLiked((likeRes.data as any).liked);
+                }
+                setLikeCount(bsctData.likeCount ?? 0);
             } else {
                 setError(apiError || "Không thể tải thông tin blog");
             }
@@ -64,6 +118,29 @@ export default function BSCTDetailScreen({ }: BSCTDetailProps) {
             fetchBSCTDetail();
         }
     }, [id]);
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.timing(spinValue, {
+                toValue: 1,
+                duration: 1000,
+                easing: Easing.linear,
+                useNativeDriver: true,
+            })
+        ).start();
+
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseValue, { toValue: 1.2, duration: 600, useNativeDriver: true }),
+                Animated.timing(pulseValue, { toValue: 1, duration: 600, useNativeDriver: true }),
+            ])
+        ).start();
+    }, []);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ["0deg", "360deg"],
+    });
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -87,16 +164,93 @@ export default function BSCTDetailScreen({ }: BSCTDetailProps) {
         }
     };
 
-    const handleLike = () => {
-        setIsLiked(!isLiked);
-        // TODO: Call API to like/unlike
+    const handleLike = async () => {
+        if (!user?.id) {
+            alert("Vui lòng đăng nhập để thích bài viết");
+            return;
+        }
+
+        likeRotate.setValue(0);
+
+        Animated.sequence([
+            Animated.parallel([
+                Animated.spring(likeScale, {
+                    toValue: 1.4,
+                    useNativeDriver: true,
+                    speed: 50
+                }),
+                Animated.timing(likeRotate, {
+                    toValue: 1,
+                    duration: 150,
+                    useNativeDriver: true
+                }),
+            ]),
+            Animated.parallel([
+                Animated.spring(likeScale, {
+                    toValue: 1,
+                    useNativeDriver: true,
+                    speed: 20
+                }),
+                Animated.timing(likeRotate, {
+                    toValue: 0,
+                    duration: 150,
+                    useNativeDriver: true
+                }),
+            ]),
+        ]).start();
+
+        const newLiked = !isLiked;
+        setIsLiked(newLiked);
+        setLikeCount(prev => newLiked ? prev + 1 : prev - 1);
+
+        try {
+            const res = await apiCall({
+                endpoint: `/bsct/${bsct!.id}/like`,
+                method: 'POST',
+                requireAuth: false,
+                data: { userId: user.id },
+            });
+
+            if (res.success) {
+                setLikeCount((res.data as any).likeCount);
+                setIsLiked((res.data as any).liked);
+            } else {
+                setIsLiked(!newLiked);
+                setLikeCount(prev => newLiked ? prev - 1 : prev + 1);
+            }
+        } catch {
+            setIsLiked(!newLiked);
+            setLikeCount(prev => newLiked ? prev - 1 : prev + 1);
+        }
     };
+
+    const likeRotateDeg = likeRotate.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '20deg'],
+    });
 
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.primary} />
-                <Text style={styles.loadingText}>Đang tải...</Text>
+                <Animated.View
+                    style={[
+                        styles.loadingOuter,
+                        { transform: [{ scale: pulseValue }], borderColor: theme.primary + "30" },
+                    ]}
+                >
+                    <View style={[styles.loadingMiddle, { borderColor: theme.primary + "60" }]}>
+                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                            <Ionicons name="leaf" size={36} color={theme.primary} />
+                        </Animated.View>
+                    </View>
+                </Animated.View>
+
+                <Text style={[styles.loadingTitle, { color: theme.text }]}>
+                    Đang tải
+                </Text>
+                <Text style={[styles.loadingSubtext, { color: theme.textSecondary }]}>
+                    Vui lòng chờ trong giây lát...
+                </Text>
             </View>
         );
     }
@@ -121,12 +275,14 @@ export default function BSCTDetailScreen({ }: BSCTDetailProps) {
 
             {/* Header Image */}
             <View style={styles.headerImage}>
-                {bsct.images && (
+                {bsct.imageUrl ? (
                     <Image
-                        source={{ uri: bsct.images }}
+                        source={{ uri: bsct.imageUrl }}
                         style={StyleSheet.absoluteFillObject}
                         resizeMode="cover"
                     />
+                ) : (
+                    <View style={[StyleSheet.absoluteFillObject, { backgroundColor: theme.surface }]} />
                 )}
                 <View style={styles.imageOverlay} />
 
@@ -143,8 +299,14 @@ export default function BSCTDetailScreen({ }: BSCTDetailProps) {
                         <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
                             <Ionicons name="share-outline" size={20} color={theme.text} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionButton}>
-                            <Ionicons name="bookmark-outline" size={20} color={theme.text} />
+                        <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
+                            <Animated.View style={{ transform: [{ scale: bookmarkScale }] }}>
+                                <Ionicons
+                                    name={bookmarked ? "bookmark" : "bookmark-outline"}
+                                    size={20}
+                                    color={bookmarked ? theme.primary : theme.text}
+                                />
+                            </Animated.View>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -173,16 +335,37 @@ export default function BSCTDetailScreen({ }: BSCTDetailProps) {
                             Đăng ngày {formatDate(bsct.createdAt)}
                         </Text>
                     </View>
-                    <View style={styles.statsContainer}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statNumber}>2.1K</Text>
-                            <Text style={styles.statLabel}>Lượt xem</Text>
-                        </View>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statNumber}>45</Text>
-                            <Text style={styles.statLabel}>Lượt thích</Text>
-                        </View>
+                </View>
+
+                {/* Stats row riêng — xuống hàng */}
+                <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                        <Ionicons name="eye-outline" size={18} color={theme.textSecondary} />
+                        <Text style={styles.statNumber}>
+                            {bsct.viewCount && bsct.viewCount >= 1000
+                                ? `${(bsct.viewCount / 1000).toFixed(1)}K`
+                                : bsct.viewCount ?? 0}
+                        </Text>
+                        <Text style={styles.statLabel}>Lượt xem</Text>
                     </View>
+
+                    <View style={styles.statDivider} />
+
+                    <TouchableOpacity onPress={handleLike} style={styles.statItem}>
+                        <Animated.View style={{
+                            transform: [{ scale: likeScale }, { rotate: likeRotateDeg }]
+                        }}>
+                            <Ionicons
+                                name={isLiked ? "heart" : "heart-outline"}
+                                size={18}
+                                color={isLiked ? '#e74c3c' : theme.textSecondary}
+                            />
+                        </Animated.View>
+                        <Text style={[styles.statNumber, { color: isLiked ? '#e74c3c' : theme.primary }]}>
+                            {likeCount >= 1000 ? `${(likeCount / 1000).toFixed(1)}K` : likeCount}
+                        </Text>
+                        <Text style={styles.statLabel}>Lượt thích</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Content */}
@@ -292,16 +475,26 @@ const createStyles = (theme: Colors) => StyleSheet.create({
         marginBottom: 20,
     },
 
-    // Author & Stats
+    // authorSection: {
+    //     flexDirection: 'row',
+    //     alignItems: 'center',
+    //     paddingVertical: 16,
+    //     borderTopWidth: 1,
+    //     borderBottomWidth: 1,
+    //     borderColor: theme.border,
+    //     marginBottom: 24,
+    // },
+
     authorSection: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 16,
         borderTopWidth: 1,
-        borderBottomWidth: 1,
         borderColor: theme.border,
-        marginBottom: 24,
+        marginBottom: 0,
     },
+
+
     authorAvatar: {
         width: 40,
         height: 40,
@@ -436,5 +629,47 @@ const createStyles = (theme: Colors) => StyleSheet.create({
     },
     shareButtonText: {
         color: theme.primary,
+    },
+    //loading
+    loadingOuter: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 2,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 24,
+    },
+    loadingMiddle: {
+        width: 76,
+        height: 76,
+        borderRadius: 38,
+        borderWidth: 2,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    loadingTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        marginBottom: 6,
+    },
+    loadingSubtext: {
+        fontSize: 14,
+    },
+
+    statsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 4,
+        borderBottomWidth: 1,
+        borderColor: theme.border,
+        marginBottom: 24,
+        gap: 24,
+    },
+    statDivider: {
+        width: 1,
+        height: 32,
+        backgroundColor: theme.border,
     },
 });

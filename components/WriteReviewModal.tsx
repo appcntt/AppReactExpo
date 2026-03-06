@@ -1,4 +1,3 @@
-// WriteReviewModal.tsx
 import { Colors, useTheme } from '@/contexts/ThemeContext';
 import { getToken } from '@/utils/tokenManager';
 import { BASE_URL } from '@env';
@@ -7,7 +6,6 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   ScrollView,
@@ -15,7 +13,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 type ProductType = 'Product' | 'ProductNongNghiepDoThi' | 'ProductConTrungGiaDung';
@@ -26,6 +24,20 @@ interface WriteReviewModalProps {
   productId: string;
   productType: ProductType;
   onReviewSubmitted?: () => void;
+}
+
+interface CustomAlertButton {
+  text: string;
+  style?: 'default' | 'cancel' | 'destructive';
+  onPress?: () => void;
+}
+
+interface CustomAlertProps {
+  visible: boolean;
+  title: string;
+  message: string;
+  buttons: CustomAlertButton[];
+  type?: 'success' | 'error' | 'warning' | 'confirm';
 }
 
 export default function WriteReviewModal({
@@ -41,23 +53,101 @@ export default function WriteReviewModal({
   const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [alert, setAlert] = useState<CustomAlertProps>({
+    visible: false,
+    title: '',
+    message: '',
+    buttons: [],
+    type: 'confirm',
+  });
+
+
   const styles = createStyles(theme);
+
+  const showAlert = (
+    title: string,
+    message: string,
+    buttons: CustomAlertButton[],
+    type: CustomAlertProps['type'] = 'confirm'
+  ) => {
+    setAlert({ visible: true, title, message, buttons, type });
+  };
+
+  const hideAlert = () => {
+    setAlert(prev => ({ ...prev, visible: false }));
+  };
+
+  const alertIconMap = {
+    success: { name: 'checkmark-circle' as const, color: '#22c55e' },
+    error: { name: 'close-circle' as const, color: theme.error },
+    warning: { name: 'warning' as const, color: '#f59e0b' },
+    confirm: { name: 'help-circle' as const, color: theme.primary },
+  };
+
+  const CustomAlert = () => {
+    const icon = alertIconMap[alert.type || 'confirm'];
+    return (
+      <Modal visible={alert.visible} transparent animationType="fade">
+        <View style={styles.alertOverlay}>
+          <View style={styles.alertBox}>
+            <View style={[styles.alertIconWrapper, { backgroundColor: icon.color + '15' }]}>
+              <Ionicons name={icon.name} size={40} color={icon.color} />
+            </View>
+            <Text style={styles.alertTitle}>{alert.title}</Text>
+            <Text style={styles.alertMessage}>{alert.message}</Text>
+            <View style={[
+              styles.alertButtons,
+              alert.buttons.length === 1 && { justifyContent: 'center' }
+            ]}>
+              {alert.buttons.map((btn, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.alertBtn,
+                    alert.buttons.length === 1 && { flex: 0, paddingHorizontal: 40 },
+                    btn.style === 'cancel' && styles.alertBtnCancel,
+                    btn.style === 'destructive' && styles.alertBtnDestructive,
+                    btn.style === 'default' && { backgroundColor: theme.primary },
+                  ]}
+                  onPress={() => {
+                    hideAlert();
+                    btn.onPress?.();
+                  }}
+                >
+                  <Text style={[
+                    styles.alertBtnText,
+                    btn.style === 'cancel' && styles.alertBtnTextCancel,
+                    btn.style === 'destructive' && styles.alertBtnTextDestructive,
+                    btn.style === 'default' && { color: '#fff' },
+                  ]}>
+                    {btn.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      Alert.alert('Lỗi', 'Vui lòng chọn số sao đánh giá');
+      showAlert('Chưa chọn sao', 'Vui lòng chọn số sao đánh giá trước khi gửi.', [
+        { text: 'Đồng ý', style: 'default' }
+      ], 'warning');
       return;
     }
 
     if (comment.trim().length < 10) {
-      Alert.alert('Lỗi', 'Bình luận phải có ít nhất 10 ký tự');
+      showAlert('Nhận xét quá ngắn', 'Bình luận phải có ít nhất 10 ký tự.', [
+        { text: 'Đồng ý', style: 'default' }
+      ], 'warning');
       return;
     }
-
     try {
       setLoading(true);
 
-      // Upload images first if any
       const uploadedImages = await uploadImages(images);
 
       const token = await getToken();
@@ -70,7 +160,7 @@ export default function WriteReviewModal({
         },
         body: JSON.stringify({
           productId,
-          productType, // ✨ Gửi productType từ props
+          productType,
           rating,
           comment: comment.trim(),
           images: uploadedImages,
@@ -80,30 +170,33 @@ export default function WriteReviewModal({
       const data = await response.json();
 
       if (data.success) {
-        Alert.alert('Thành công', 'Đánh giá của bạn đã được gửi!');
-        resetForm();
-        onClose();
-        setTimeout(() => {
-          onReviewSubmitted?.(); // ✅ Gọi sau khi modal đóng
-        }, 400);
+        showAlert('Gửi thành công!', 'Cảm ơn bạn đã đánh giá sản phẩm.', [
+          {
+            text: 'Đóng', style: 'default', onPress: () => {
+              resetForm();
+              onClose();
+              setTimeout(() => onReviewSubmitted?.(), 400);
+            }
+          }
+        ], 'success');
       } else {
-        Alert.alert('Lỗi', data.error || 'Không thể gửi đánh giá');
+        showAlert('Gửi thất bại', data.error || 'Không thể gửi đánh giá. Vui lòng thử lại.', [
+          { text: 'Thử lại', style: 'default' }
+        ], 'error');
       }
     } catch (error) {
       console.error('Submit review error:', error);
-      Alert.alert('Lỗi', 'Đã có lỗi xảy ra, vui lòng thử lại');
+      showAlert('Có lỗi xảy ra', 'Vui lòng kiểm tra kết nối và thử lại.', [
+        { text: 'Đồng ý', style: 'default' }
+      ], 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const uploadImages = async (imageUris: string[]) => {
-    // TODO: Implement your image upload logic here
-    // Upload to Cloudinary, AWS S3, or your server
-    // Return array of { url, imageId }
 
     try {
-      // Example with FormData upload
       const uploadedImages = await Promise.all(
         imageUris.map(async (uri) => {
           const formData = new FormData();
@@ -112,20 +205,6 @@ export default function WriteReviewModal({
             type: 'image/jpeg',
             name: `review_${Date.now()}.jpg`,
           } as any);
-
-          // Uncomment and modify with your upload endpoint
-          // const response = await fetch(`${BASE_URL}/upload`, {
-          //   method: 'POST',
-          //   body: formData,
-          //   headers: {
-          //     'Content-Type': 'multipart/form-data',
-          //     Authorization: `Bearer ${await getToken()}`,
-          //   },
-          // });
-          // const data = await response.json();
-          // return { url: data.url, imageId: data.imageId };
-
-          // Temporary: return local URIs (replace with actual upload)
           return { url: uri, imageId: Date.now().toString() };
         })
       );
@@ -133,22 +212,27 @@ export default function WriteReviewModal({
       return uploadedImages;
     } catch (error) {
       console.error('Upload images error:', error);
-      Alert.alert('Lỗi', 'Không thể tải ảnh lên. Vui lòng thử lại.');
+      showAlert('Lỗi tải ảnh', 'Không thể tải ảnh lên. Vui lòng thử lại.', [
+        { text: 'Đồng ý', style: 'default' }
+      ], 'error');
       return [];
     }
   };
 
   const pickImage = async () => {
     if (images.length >= 5) {
-      Alert.alert('Giới hạn', 'Bạn chỉ có thể tải lên tối đa 5 ảnh');
+      showAlert('Đã đạt giới hạn', 'Bạn chỉ có thể tải lên tối đa 5 ảnh.', [
+        { text: 'Đồng ý', style: 'default' }
+      ], 'warning');
       return;
     }
 
-    // Request permission
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (permissionResult.granted === false) {
-      Alert.alert('Quyền truy cập', 'Bạn cần cấp quyền truy cập thư viện ảnh để tiếp tục');
+    if (!permissionResult.granted) {
+      showAlert('Cần quyền truy cập', 'Vui lòng cấp quyền truy cập thư viện ảnh để tiếp tục.', [
+        { text: 'Đồng ý', style: 'default' }
+      ], 'warning');
       return;
     }
 
@@ -177,20 +261,14 @@ export default function WriteReviewModal({
 
   const handleClose = () => {
     if (rating > 0 || comment.trim()) {
-      Alert.alert(
-        'Xác nhận',
-        'Bạn có chắc muốn hủy? Đánh giá chưa hoàn thành sẽ bị mất.',
+      showAlert(
+        'Hủy đánh giá?',
+        'Nội dung bạn đang viết sẽ bị mất nếu thoát.',
         [
           { text: 'Tiếp tục viết', style: 'cancel' },
-          {
-            text: 'Hủy',
-            style: 'destructive',
-            onPress: () => {
-              resetForm();
-              onClose();
-            },
-          },
-        ]
+          { text: 'Hủy bỏ', style: 'destructive', onPress: () => { resetForm(); onClose(); } },
+        ],
+        'confirm'
       );
     } else {
       onClose();
@@ -200,7 +278,7 @@ export default function WriteReviewModal({
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <View style={styles.container}>
-        {/* Header */}
+        <CustomAlert />
         <View style={styles.header}>
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <Ionicons name="close" size={24} color={theme.text} />
@@ -464,4 +542,18 @@ const createStyles = (theme: Colors) =>
       fontSize: 16,
       fontWeight: '600',
     },
+
+    // Custom Alert
+    alertOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+    alertBox: { backgroundColor: theme.card, borderRadius: 20, padding: 24, width: '100%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20, elevation: 10 },
+    alertIconWrapper: { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+    alertTitle: { fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 8, textAlign: 'center' },
+    alertMessage: { fontSize: 14, color: theme.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+    alertButtons: { flexDirection: 'row', gap: 12, width: '100%' },
+    alertBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: theme.primary },
+    alertBtnCancel: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+    alertBtnDestructive: { backgroundColor: theme.error + '15', borderWidth: 1, borderColor: theme.error },
+    alertBtnText: { fontSize: 15, fontWeight: '600', color: '#fff' },
+    alertBtnTextCancel: { color: theme.text },
+    alertBtnTextDestructive: { color: theme.error },
   });

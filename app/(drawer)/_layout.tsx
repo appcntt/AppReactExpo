@@ -1,11 +1,12 @@
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useBSCT } from "@/contexts/BsctContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { DrawerContentScrollView, DrawerItem } from "@react-navigation/drawer";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Drawer } from 'expo-router/drawer';
-import { useCallback } from "react";
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useTabVisibility } from "./(tabs)/_layout";
 
@@ -190,7 +191,25 @@ function CustomDrawerContent(props: any) {
           ]}
         />
 
-        {/* Account - Show different text based on login status */}
+        <DrawerItem
+          label="Bài viết đã lưu"
+          icon={({ color, size }) => (
+            <Ionicons
+              name={isRouteActive("saved_blog") ? "library" : "library-outline"}
+              size={size}
+              color={color}
+            />
+          )}
+          onPress={() => props.navigation.navigate('saved_blog')}
+          activeTintColor={theme.drawerActiveTint}
+          inactiveTintColor={theme.drawerInactiveTint}
+          focused={isRouteActive("saved_blog")}
+          style={isRouteActive("saved_blog") ? styles.activeDrawerItem : null}
+          labelStyle={[
+            { color: theme.text },
+            isRouteActive("saved_blog") ? styles.activeDrawerLabel : null
+          ]}
+        />
         <DrawerItem
           label={isLoggedIn === true ? "Tài khoản" : "Đăng nhập"}
           icon={({ color, size }) => (
@@ -284,9 +303,84 @@ function CustomDrawerContent(props: any) {
   )
 }
 
+function HeaderTrashButton() {
+  const { theme } = useTheme();
+  const { bookmarks } = useBSCT();
+  const [clearModal, setClearModal] = useState(false);
+  const { clearAllBookmarks } = useBSCT();
+
+  if (bookmarks.length === 0) return null;
+
+  return (
+    <>
+      <TouchableOpacity
+        onPress={() => setClearModal(true)}
+        style={{ marginRight: 16, padding: 4 }}
+      >
+        <Ionicons name="trash-outline" size={22} color={theme.error} />
+      </TouchableOpacity>
+
+      <Modal visible={clearModal} transparent animationType="fade">
+        <View style={{
+          flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32
+        }}>
+          <View style={{
+            backgroundColor: theme.card, borderRadius: 20,
+            padding: 24, width: '100%', alignItems: 'center'
+          }}>
+            <View style={{
+              width: 64, height: 64, borderRadius: 32,
+              backgroundColor: theme.error + '15',
+              justifyContent: 'center', alignItems: 'center', marginBottom: 16
+            }}>
+              <Ionicons name="trash-outline" size={32} color={theme.error} />
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 8 }}>
+              Xóa tất cả?
+            </Text>
+            <Text style={{
+              fontSize: 14, color: theme.textSecondary,
+              textAlign: 'center', lineHeight: 20, marginBottom: 24
+            }}>
+              Tất cả bài viết đã lưu sẽ bị xóa. Bạn không thể hoàn tác thao tác này.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1, paddingVertical: 13, borderRadius: 12,
+                  borderWidth: 1.5, borderColor: theme.border,
+                  backgroundColor: theme.surface, alignItems: 'center'
+                }}
+                onPress={() => setClearModal(false)}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '600', color: theme.text }}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1, paddingVertical: 13, borderRadius: 12,
+                  backgroundColor: theme.error, alignItems: 'center',
+                  flexDirection: 'row', justifyContent: 'center', gap: 6
+                }}
+                onPress={async () => {
+                  await clearAllBookmarks();
+                  setClearModal(false);
+                }}
+              >
+                <Ionicons name="trash-outline" size={16} color="#fff" />
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Xóa hết</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
 function DrawerLayoutContent() {
   const { theme } = useTheme();
-  
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Drawer
@@ -362,6 +456,14 @@ function DrawerLayoutContent() {
             title: 'THƯ VIỆN',
           }}
         />
+        <Drawer.Screen
+          name="saved_blog"
+          options={{
+            title: 'BÀI VIẾT ĐÃ LƯU',
+            drawerItemStyle: { display: 'none' },
+            headerRight: () => <HeaderTrashButton />,
+          }}
+        />
       </Drawer>
     </GestureHandlerRootView>
   );
@@ -369,9 +471,9 @@ function DrawerLayoutContent() {
 
 export default function DrawerLayout() {
   return (
-      <AuthProvider>
-        <DrawerLayoutContent />
-      </AuthProvider>
+    <AuthProvider>
+      <DrawerLayoutContent />
+    </AuthProvider>
   );
 }
 

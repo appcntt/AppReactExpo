@@ -1,10 +1,8 @@
 export interface Review {
-  _id: string;
-  userId: {
-    _id: string;
-    name: string;
-    // avatar?: string;
-  };
+  id: string;
+  userId: number;
+  userName?: string;
+  userEmail?: string;
   rating: number;
   comment: string;
   images?: Array<{ url: string }>;
@@ -13,7 +11,8 @@ export interface Review {
   createdAt: string;
   isEdited: boolean;
   replies?: Array<{
-    userId: { name: string };
+    userId: number;
+    userName?: string;
     comment: string;
     createdAt: string;
   }>;

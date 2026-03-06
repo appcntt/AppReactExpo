@@ -16,7 +16,7 @@ export default function ProductReviewComponent() {
   const params = useLocalSearchParams();
   const id = params.id as string;
   const productType = (params.productType as ProductType) || 'Product';
-  
+
   const [reviews, setReviews] = useState<Review[]>([]);
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,6 @@ export default function ProductReviewComponent() {
         ...(filterRating && { rating: filterRating.toString() }),
       });
 
-      // ✨ Fix endpoint: /api/reviews/:productType/:productId
       const response = await fetch(`${BASE_URL}/review/${productType}/${id}?${query}`);
       const data = await response.json();
 
@@ -57,10 +56,9 @@ export default function ProductReviewComponent() {
         } else {
           setReviews([...reviews, ...data.data]);
         }
-        
-        // Check if has more
-        const hasMoreData = data.pagination 
-          ? data.pagination.currentPage < data.pagination.totalPages 
+
+        const hasMoreData = data.pagination
+          ? data.pagination.currentPage < data.pagination.totalPages
           : data.data.length >= 10;
         setHasMore(hasMoreData);
       }
@@ -75,13 +73,9 @@ export default function ProductReviewComponent() {
   const fetchStats = async () => {
     try {
       const url = `${BASE_URL}/review/${productType}/${id}/stats`;
-      
+
       const response = await fetch(url);
-      
-      // // Log response status
-      // console.log('📊 Stats response status:', response.status);
-      
-      // Check if response is ok
+
       if (!response.ok) {
         const text = await response.text();
         console.error('❌ Stats error response:', text);
@@ -89,7 +83,6 @@ export default function ProductReviewComponent() {
       }
 
       const data = await response.json();
-      // console.log('📊 Stats data:', data);
 
       if (data.success) {
         setStats({
@@ -109,7 +102,7 @@ export default function ProductReviewComponent() {
   const handleMarkHelpful = async (reviewId: string, currentlyMarked: boolean) => {
     try {
       const token = await getToken();
-      
+
       const response = await fetch(`${BASE_URL}/review/${reviewId}/helpful`, {
         method: 'POST',
         headers: {
@@ -121,14 +114,13 @@ export default function ProductReviewComponent() {
       const data = await response.json();
 
       if (data.success) {
-        // Update local state
-        setReviews(reviews.map(review => 
-          review._id === reviewId 
-            ? { 
-                ...review, 
-                helpfulCount: data.data.helpfulCount,
-                isHelpful: data.data.isMarkedHelpful 
-              }
+        setReviews(reviews.map(review =>
+          review.id === reviewId
+            ? {
+              ...review,
+              helpfulCount: data.data.helpfulCount,
+              isHelpful: data.data.isMarkedHelpful
+            }
             : review
         ));
       } else {
@@ -218,11 +210,11 @@ export default function ProductReviewComponent() {
               {/* {item.userId.avatar ? (
                 <Image source={{ uri: item.userId.avatar }} style={styles.avatarImage} />
               ) : ( */}
-                <Ionicons name="person" size={20} color={theme.textSecondary} />
+              <Ionicons name="person" size={20} color={theme.textSecondary} />
               {/* )} */}
             </View>
             <View>
-              <Text style={styles.userName}>{item?.userId?.name || 'Người dùng ẩn danh'}</Text>
+              <Text style={styles.userName}>{item?.userName || 'Người dùng ẩn danh'}</Text>
               <Text style={styles.reviewDate}>{timeAgo}</Text>
             </View>
           </View>
@@ -244,9 +236,9 @@ export default function ProductReviewComponent() {
 
         {/* Actions */}
         <View style={styles.reviewActions}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => handleMarkHelpful(item._id, item.isHelpful || false)}
+            onPress={() => handleMarkHelpful(item.id, item.isHelpful || false)}
           >
             <Ionicons
               name={item.isHelpful ? 'thumbs-up' : 'thumbs-up-outline'}
@@ -269,7 +261,9 @@ export default function ProductReviewComponent() {
               <View key={idx} style={styles.replyItem}>
                 <Ionicons name="arrow-undo" size={14} color={theme.textSecondary} />
                 <View style={styles.replyContent}>
-                  <Text style={styles.replyAuthor}>{reply.userId.name}</Text>
+                  <Text style={styles.replyAuthor}>
+                    {reply.userName || 'Ẩn danh'}
+                  </Text>
                   <Text style={styles.replyText}>{reply.comment}</Text>
                   <Text style={styles.replyDate}>{getTimeAgo(reply.createdAt)}</Text>
                 </View>
@@ -308,7 +302,7 @@ export default function ProductReviewComponent() {
       <FlatList
         data={reviews}
         renderItem={renderReviewItem}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item) => item.id}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListHeaderComponent={

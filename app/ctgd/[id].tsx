@@ -37,9 +37,8 @@ export default function ProductDetailScreen() {
         if (!id) return;
 
         setLoading(true);
-        setProduct(null); // reset để tránh hiển thị dữ liệu cũ
+        setProduct(null);
 
-        // giả sử getProduct có thể async hoặc sync
         const data = getProduct(id);
         if (data instanceof Promise) {
             data.then(p => setProduct(p)).finally(() => setLoading(false));
@@ -53,7 +52,6 @@ export default function ProductDetailScreen() {
     const translateX = useSharedValue(0);
     const translateY = useSharedValue(0);
 
-    // Reset zoom
     const resetZoom = () => {
         scale.value = withTiming(1);
         translateX.value = withTiming(0);
@@ -84,21 +82,17 @@ export default function ProductDetailScreen() {
             resetZoom();
         }
     };
-    // Pinch
     const pinchGesture = Gesture.Pinch()
         .onUpdate((event) => {
             scale.value = Math.max(1, Math.min(event.scale, 4));
         });
 
-    // Pan
     const panGesture = Gesture.Pan()
         .onUpdate((event) => {
             if (scale.value > 1) {
-                // Nếu đang zoom thì kéo ảnh
                 translateX.value = event.translationX;
                 translateY.value = event.translationY;
             } else {
-                // Nếu scale=1 thì vuốt để chuyển ảnh
                 translateX.value = event.translationX;
             }
         })
@@ -114,7 +108,6 @@ export default function ProductDetailScreen() {
             translateY.value = withTiming(0);
         });
 
-    // Double tap
     const doubleTapGesture = Gesture.Tap()
         .numberOfTaps(2)
         .onEnd(() => {
@@ -126,10 +119,8 @@ export default function ProductDetailScreen() {
             }
         });
 
-    // Combine
     const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture, doubleTapGesture);
 
-    // Animated style
     const animatedImageStyle = useAnimatedStyle(() => ({
         transform: [
             { scale: scale.value },
@@ -157,8 +148,6 @@ export default function ProductDetailScreen() {
     }
 
 
-    // const product = id ? getProduct(id) : undefined;
-
     if (!product || !id) {
         return (
             <SafeAreaView style={styles.container}>
@@ -180,10 +169,10 @@ export default function ProductDetailScreen() {
     const modalImage = images[modalImageIndex];
 
     const getImageUrl = (image: any) => {
-        if (!image) return '';
-        return typeof image === 'string' ? image : image.url || '';
+        if (!image) return "";
+        if (typeof image === "string") return image;
+        return image.imageUrl || image.url || "";
     };
-
     const renderHeader = () => (
         <View style={styles.header}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -214,9 +203,6 @@ export default function ProductDetailScreen() {
                 {currentImage ? (
                     <TouchableOpacity onPress={() => openImageModal(selectedImageIndex)}>
                         <Image
-                            // source={{
-                            //     uri: typeof currentImage === 'string' ? currentImage : currentImage.url
-                            // }}
                             source={{ uri: getImageUrl(currentImage) }}
                             style={styles.mainImage}
                             resizeMode="cover"
@@ -246,9 +232,6 @@ export default function ProductDetailScreen() {
                             ]}
                         >
                             <Image
-                                // source={{
-                                //     uri: typeof image === 'string' ? image : image.url
-                                // }}
                                 source={{ uri: getImageUrl(image) }}
                                 style={styles.thumbnailImage}
                                 resizeMode="cover"
@@ -296,9 +279,9 @@ export default function ProductDetailScreen() {
         <View style={styles.infoSection}>
             <Text style={styles.productTitle}>{product.name}</Text>
 
-            {product.categoryctgd && (
+            {product.categoryName && (
                 <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryBadgeText}>{product.categoryctgd.name}</Text>
+                    <Text style={styles.categoryBadgeText}>{product.categoryName}</Text>
                 </View>
             )}
 

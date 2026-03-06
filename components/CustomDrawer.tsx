@@ -3,7 +3,7 @@ import { Dimensions, StyleSheet, Text, TouchableOpacity } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring
+  withSpring,
 } from "react-native-reanimated";
 
 const { width } = Dimensions.get("window");
@@ -16,20 +16,25 @@ type DrawerProps = {
   isPushMode?: boolean;
 };
 
-export const CustomDrawer: React.FC<DrawerProps> = ({ isOpen, onClose, navigateTo, isPushMode = false }) => {
-  const translateX = useRef(useSharedValue(isPushMode ? 0 : -DRAWER_WIDTH)).current;
+export const CustomDrawer: React.FC<DrawerProps> = ({
+  isOpen,
+  onClose,
+  navigateTo,
+  isPushMode = false,
+}) => {
+  const translateX = useRef(
+    useSharedValue(isPushMode ? 0 : -DRAWER_WIDTH),
+  ).current;
   const overlayOpacity = useSharedValue(0);
 
   React.useEffect(() => {
     if (!isPushMode) {
-      // Original overlay behavior
       if (isOpen) {
         translateX.value = withSpring(0, { damping: 15 });
       } else {
         translateX.value = withSpring(-DRAWER_WIDTH, { damping: 15 });
       }
     }
-    // For push mode, drawer stays at translateX = 0 (always visible)
   }, [isOpen, isPushMode, translateX]);
 
   const drawerStyle = useAnimatedStyle(() => ({
@@ -40,35 +45,58 @@ export const CustomDrawer: React.FC<DrawerProps> = ({ isOpen, onClose, navigateT
     opacity: overlayOpacity.value,
   }));
 
-  const handleNavigation = React.useCallback((screen: string) => {
-    navigateTo(screen);
-    onClose();
-  }, [navigateTo, onClose]);
+  const handleNavigation = React.useCallback(
+    (screen: string) => {
+      navigateTo(screen);
+      onClose();
+    },
+    [navigateTo, onClose],
+  );
 
   return (
     <>
-      {/* Overlay mờ */}
       {isOpen && (
         <Animated.View style={[styles.overlay, overlayStyle]}>
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={onClose}
+          />
         </Animated.View>
       )}
 
-      {/* Drawer */}
-      <Animated.View style={[styles.drawer, drawerStyle, isPushMode && styles.drawerPushMode,
-      !isPushMode && drawerStyle]}>
+      <Animated.View
+        style={[
+          styles.drawer,
+          drawerStyle,
+          isPushMode && styles.drawerPushMode,
+          !isPushMode && drawerStyle,
+        ]}
+      >
         <Text style={styles.title}>Menu</Text>
 
-        <TouchableOpacity onPress={() => navigateTo("/home")} style={styles.item}>
+        <TouchableOpacity
+          onPress={() => navigateTo("/home")}
+          style={styles.item}
+        >
           <Text>🏠 Home</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigateTo("/product")} style={styles.item}>
+        <TouchableOpacity
+          onPress={() => navigateTo("/product")}
+          style={styles.item}
+        >
           <Text>🛒 Products</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigateTo("/favourite")} style={styles.item}>
+        <TouchableOpacity
+          onPress={() => navigateTo("/favourite")}
+          style={styles.item}
+        >
           <Text>❤️ Favourites</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={onClose} style={[styles.item, { marginTop: 30 }]}>
+        <TouchableOpacity
+          onPress={onClose}
+          style={[styles.item, { marginTop: 30 }]}
+        >
           <Text>❌ Close</Text>
         </TouchableOpacity>
       </Animated.View>
@@ -87,7 +115,6 @@ const styles = StyleSheet.create({
     zIndex: 99,
   },
   drawerPushMode: {
-    // For push mode, ensure drawer is always positioned correctly
     transform: [{ translateX: 0 }],
   },
   drawer: {
