@@ -141,7 +141,6 @@ export default function ProductListScreen() {
     const styles = createStyles(theme, isDark);
     return (
       <View>
-        {/* Hàng 1: Menu + Title */}
         <View style={styles.headerTop}>
           <TouchableOpacity
             style={styles.menuButton}
@@ -152,8 +151,6 @@ export default function ProductListScreen() {
           <Text style={styles.headerTitle}>Sản phẩm</Text>
           <View style={{ width: 44 }} />
         </View>
-
-        {/* Hàng 2: Search bar */}
         <View style={styles.searchRow}>
           <View style={styles.searchInputContainer}>
             <Ionicons name="search" size={16} color={theme.textSecondary} style={{ marginRight: 8 }} />

@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Animated,
     Dimensions,
+    Easing,
     Image,
     Modal,
     ScrollView,
@@ -15,14 +16,13 @@ import {
 } from 'react-native';
 
 import HtmlDescription from '@/components/HtmlDescription';
-import { useFavourite } from '@/contexts/FavouriteContext';
 import { useProduct } from '@/contexts/ProductNNDTContext';
 import { Colors, useTheme } from '@/contexts/ThemeContext';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function ProductDetailScreen() {
     const { theme, isDark } = useTheme();
@@ -30,12 +30,18 @@ export default function ProductDetailScreen() {
     const { getProduct } = useProduct();
     const [loading, setLoading] = useState(true);
     const [product, setProduct] = useState<any>(null);
-    const { favourites } = useFavourite();
     const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
     const [isImageModalVisible, setIsImageModalVisible] = useState(false);
     const [modalImageIndex, setModalImageIndex] = useState(0);
 
-    const styles = createStyles(theme);
+
+    const insets = useSafeAreaInsets();
+
+
+    const spinValue = useRef(new Animated.Value(0)).current;
+    const pulseValue = useRef(new Animated.Value(1)).current;
+    
+    const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
     useEffect(() => {
         if (!id) return;
@@ -55,6 +61,32 @@ export default function ProductDetailScreen() {
     const scale = useSharedValue(1);
     const translateX = useSharedValue(0);
     const translateY = useSharedValue(0);
+    const swipeDirection = useSharedValue(0);
+
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.timing(spinValue, {
+                toValue: 1,
+                duration: 1000,
+                easing: Easing.linear,
+                useNativeDriver: true,
+            })
+        ).start();
+
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseValue, { toValue: 1.2, duration: 600, useNativeDriver: true }),
+                Animated.timing(pulseValue, { toValue: 1, duration: 600, useNativeDriver: true }),
+            ])
+        ).start();
+    }, []);
+
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ["0deg", "360deg"],
+    });
 
     const resetZoom = () => {
         scale.value = withTiming(1);
@@ -73,24 +105,11 @@ export default function ProductDetailScreen() {
         resetZoom();
     };
 
-    const nextImage = () => {
-        if (modalImageIndex < product.images.length - 1) {
-            setModalImageIndex(modalImageIndex + 1);
-            resetZoom();
-        }
-    };
-
-    const prevImage = () => {
-        if (modalImageIndex > 0) {
-            setModalImageIndex(modalImageIndex - 1);
-            resetZoom();
-        }
-    };
-
     const pinchGesture = Gesture.Pinch()
         .onUpdate((event) => {
             scale.value = Math.max(1, Math.min(event.scale, 4));
         });
+
 
     const panGesture = Gesture.Pan()
         .onUpdate((event) => {
@@ -104,9 +123,9 @@ export default function ProductDetailScreen() {
         .onEnd((event) => {
             if (scale.value === 1) {
                 if (event.translationX < -100) {
-                    runOnJS(nextImage)();
+                    swipeDirection.value = -1;
                 } else if (event.translationX > 100) {
-                    runOnJS(prevImage)();
+                    swipeDirection.value = 1;
                 }
             }
             translateX.value = withTiming(0);
@@ -134,18 +153,29 @@ export default function ProductDetailScreen() {
     }));
 
     if (loading) {
+
         return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color={theme.text} />
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.notFoundContainer}>
-                    <Text style={styles.notFoundTitle}>Loading...</Text>
-                    <Text style={styles.notFoundText}>Please wait</Text>
-                </View>
-            </SafeAreaView>
+            <View style={styles.loadingContainer}>
+                <Animated.View
+                    style={[
+                        styles.loadingOuter,
+                        { transform: [{ scale: pulseValue }], borderColor: theme.primary + "30" },
+                    ]}
+                >
+                    <View style={[styles.loadingMiddle, { borderColor: theme.primary + "60" }]}>
+                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                            <Ionicons name="leaf" size={36} color={theme.primary} />
+                        </Animated.View>
+                    </View>
+                </Animated.View>
+
+                <Text style={[styles.loadingTitle, { color: theme.text }]}>
+                    Đang tải sản phẩm
+                </Text>
+                <Text style={[styles.loadingSubtext, { color: theme.textSecondary }]}>
+                    Vui lòng chờ trong giây lát...
+                </Text>
+            </View>
         );
     }
 
@@ -178,7 +208,7 @@ export default function ProductDetailScreen() {
     const renderHeader = () => (
         <View style={styles.header}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={24} color={theme.text} />
+                <Ionicons name="arrow-back" size={24} color="#64748b" />
             </TouchableOpacity>
 
             <Text style={styles.headerTitle} numberOfLines={1}>
@@ -256,6 +286,30 @@ export default function ProductDetailScreen() {
                                 resizeMode="contain"
                             />
                         </GestureDetector>
+
+                        {modalImageIndex > 0 && (
+                            <TouchableOpacity
+                                style={styles.modalNavLeft}
+                                onPress={() => {
+                                    setModalImageIndex(prev => prev - 1);
+                                    resetZoom();
+                                }}
+                            >
+                                <Ionicons name="chevron-back" size={32} color="#fff" />
+                            </TouchableOpacity>
+                        )}
+
+                        {modalImageIndex < images.length - 1 && (
+                            <TouchableOpacity
+                                style={styles.modalNavRight}
+                                onPress={() => {
+                                    setModalImageIndex(prev => prev + 1);
+                                    resetZoom();
+                                }}
+                            >
+                                <Ionicons name="chevron-forward" size={32} color="#fff" />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
             </Modal>
@@ -299,6 +353,17 @@ export default function ProductDetailScreen() {
                     />
                 </View>
             )}
+
+            <TouchableOpacity style={[styles.writeButton, { marginBottom: insets.bottom + 16 }]} onPress={() => router.push({
+                pathname: '/reviews/[id]',
+                params: {
+                    id: product.id,
+                    productType: 'ProductNongNghiepDoThi',
+                },
+            })}>
+                <Ionicons name="create-outline" size={20} color="#fff" />
+                <Text style={styles.writeButtonText}>Xem đánh giá</Text>
+            </TouchableOpacity>
         </View>
     );
 
@@ -314,21 +379,11 @@ export default function ProductDetailScreen() {
                 {renderImageGallery()}
                 {renderProductInfo()}
             </ScrollView>
-            <TouchableOpacity style={styles.writeButton} onPress={() => router.push({
-                pathname: '/reviews/[id]',
-                params: {
-                    id: product.id,
-                    productType: 'ProductNongNghiepDoThi',
-                },
-            })}>
-                <Ionicons name="create-outline" size={20} color="#fff" />
-                <Text style={styles.writeButtonText}>Xem đánh giá</Text>
-            </TouchableOpacity>
         </SafeAreaProvider>
     );
 }
 
-const createStyles = (theme: Colors) => StyleSheet.create({
+const createStyles = (theme: Colors, isDark: boolean) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.background,
@@ -344,23 +399,23 @@ const createStyles = (theme: Colors) => StyleSheet.create({
         justifyContent: 'space-between',
         borderBottomWidth: 1,
         borderBottomColor: theme.border,
+        ...(!isDark ? {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
+        } : {}),
     },
 
     writeButton: {
-        position: 'absolute',
-        bottom: 20,
-        right: 20,
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: theme.primary,
         paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 25,
-        elevation: 5,
-        shadowColor: theme.text,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
+        paddingVertical: 14,
+        borderRadius: 12,
         gap: 8,
     },
 
@@ -395,6 +450,23 @@ const createStyles = (theme: Colors) => StyleSheet.create({
     modalContainer: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.95)',
+    },
+
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 32,
+    },
+
+    loadingSpinner: {
+        marginBottom: 16,
+    },
+
+    loadingText: {
+        fontSize: 16,
+        color: theme.textSecondary,
+        textAlign: "center",
     },
 
     modalHeader: {
@@ -580,5 +652,47 @@ const createStyles = (theme: Colors) => StyleSheet.create({
         fontSize: 16,
         color: theme.textSecondary,
         textAlign: 'center',
+    },
+
+    loadingOuter: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 2,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 24,
+    },
+    loadingMiddle: {
+        width: 76,
+        height: 76,
+        borderRadius: 38,
+        borderWidth: 2,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    loadingTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        marginBottom: 6,
+    },
+    loadingSubtext: {
+        fontSize: 14,
+    },
+    modalNavLeft: {
+        position: 'absolute',
+        left: 8,
+        top: '50%',
+        padding: 12,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        borderRadius: 24,
+    },
+    modalNavRight: {
+        position: 'absolute',
+        right: 8,
+        top: '50%',
+        padding: 12,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        borderRadius: 24,
     },
 });

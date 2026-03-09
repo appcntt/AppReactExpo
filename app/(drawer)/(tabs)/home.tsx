@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
+  Dimensions,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -50,7 +51,6 @@ const HomeScreen: React.FC = () => {
 
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
-  // Handle refresh
   const handleRefresh = async () => {
     setRefreshing(true);
     await refreshNewProducts();
@@ -58,27 +58,21 @@ const HomeScreen: React.FC = () => {
   };
 
   const handleNavigateTo = useCallback((screen: string) => {
-    // Your navigation logic here
-    console.log('Navigating to:', screen);
-
-    // Example with react-navigation:
-    // navigation.navigate(screen);
-
-    // Close drawer after navigation
     setDrawerVisible(false);
   }, []);
 
   const styles = createStyles(theme);
 
+  const { width: screenWidth } = Dimensions.get('window');
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
-        barStyle={isDark ? "light-content" : "dark-content"} // "dark-content" (chữ đen), "light-content" (chữ trắng)
-        backgroundColor={theme.background}  // màu nền cho Android
+        barStyle={isDark ? "light-content" : "dark-content"}
+        backgroundColor={theme.background}
         translucent={false}
       />
       <View style={styles.header}>
-        {/* Nút 3 gạch mở Drawer */}
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => navigation.openDrawer()}
@@ -100,29 +94,24 @@ const HomeScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
       <ScrollView
-        onScroll={handleScroll} // Gắn handler vào ScrollView
+        onScroll={handleScroll}
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[theme.primary]} // Android
-            tintColor={theme.primary} // iOS
+            colors={[theme.primary]}
+            tintColor={theme.primary}
             progressBackgroundColor={theme.card} />
         }
         showsVerticalScrollIndicator={false}
 
       >
-        {/* Header */}
 
-
-        {/* Slider Component */}
         <SliderComponent
-          height={200}
           autoPlay={true}
           autoPlayInterval={3000}
           showIndicators={true}
-          showTitle={true}
           borderRadius={12}
         />
 

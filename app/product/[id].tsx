@@ -28,7 +28,7 @@ import {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("window");
 
@@ -36,10 +36,12 @@ export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getProduct } = useProduct();
   const { theme, isDark } = useTheme();
-  
+
   //loading
   const spinValue = useRef(new Animated.Value(0)).current;
   const pulseValue = useRef(new Animated.Value(1)).current;
+
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<any>(null);
@@ -49,11 +51,6 @@ export default function ProductDetailScreen() {
   const [modalImageIndex, setModalImageIndex] = useState(0);
 
   const styles = createStyles(theme, isDark);
-
-  const containerStyle = {
-    flex: 1,
-    backgroundColor: theme.background,
-  };
 
   useEffect(() => {
     if (!id) return;
@@ -485,6 +482,13 @@ export default function ProductDetailScreen() {
             </View>
           </View>
         </View>
+        <TouchableOpacity
+          style={[styles.writeButton, { marginBottom: insets.bottom + 16 }]}
+          onPress={() => router.push(`/reviews/${product.id}`)}
+        >
+          <Ionicons name="create-outline" size={20} color="#fff" />
+          <Text style={styles.writeButtonText}>Xem đánh giá</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -506,13 +510,6 @@ export default function ProductDetailScreen() {
         {renderImageGallery()}
         {renderProductInfo()}
       </ScrollView>
-      <TouchableOpacity
-        style={styles.writeButton}
-        onPress={() => router.push(`/reviews/${product.id}`)}
-      >
-        <Ionicons name="create-outline" size={20} color="#fff" />
-        <Text style={styles.writeButtonText}>Xem đánh giá</Text>
-      </TouchableOpacity>
     </SafeAreaProvider>
   );
 }
@@ -524,21 +521,15 @@ const createStyles = (theme: any, isDark: boolean) =>
       backgroundColor: theme.background,
       paddingTop: 50,
     },
+
     writeButton: {
-      position: "absolute",
-      bottom: 20,
-      right: 20,
-      flexDirection: "row",
-      alignItems: "center",
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: theme.primary,
       paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 25,
-      elevation: 5,
-      shadowColor: theme.text,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
+      paddingVertical: 14,
+      borderRadius: 12,
       gap: 8,
     },
 
@@ -824,6 +815,7 @@ const createStyles = (theme: any, isDark: boolean) =>
 
     section: {
       marginTop: 24,
+      marginBottom : 10,
     },
 
     sectionTitle: {

@@ -18,8 +18,8 @@ import HtmlDescription from '@/components/HtmlDescription';
 import { useProduct } from '@/contexts/ProductCTGDContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,6 +32,8 @@ export default function ProductDetailScreen() {
     const { theme, isDark } = useTheme();
     const [isImageModalVisible, setIsImageModalVisible] = useState(false);
     const [modalImageIndex, setModalImageIndex] = useState(0);
+
+    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         if (!id) return;
@@ -51,6 +53,7 @@ export default function ProductDetailScreen() {
     const scale = useSharedValue(1);
     const translateX = useSharedValue(0);
     const translateY = useSharedValue(0);
+    const swipeDirection = useSharedValue(0);
 
     const resetZoom = () => {
         scale.value = withTiming(1);
@@ -69,19 +72,6 @@ export default function ProductDetailScreen() {
         resetZoom();
     };
 
-    const nextImage = () => {
-        if (modalImageIndex < product.images.length - 1) {
-            setModalImageIndex(modalImageIndex + 1);
-            resetZoom();
-        }
-    };
-
-    const prevImage = () => {
-        if (modalImageIndex > 0) {
-            setModalImageIndex(modalImageIndex - 1);
-            resetZoom();
-        }
-    };
     const pinchGesture = Gesture.Pinch()
         .onUpdate((event) => {
             scale.value = Math.max(1, Math.min(event.scale, 4));
@@ -99,9 +89,9 @@ export default function ProductDetailScreen() {
         .onEnd((event) => {
             if (scale.value === 1) {
                 if (event.translationX < -100) {
-                    runOnJS(nextImage)();
+                    swipeDirection.value = -1;
                 } else if (event.translationX > 100) {
-                    runOnJS(prevImage)();
+                    swipeDirection.value = 1;
                 }
             }
             translateX.value = withTiming(0);
@@ -114,7 +104,6 @@ export default function ProductDetailScreen() {
             if (scale.value > 1) {
                 resetZoom();
             } else {
-                // Zoom in
                 scale.value = withSpring(2.5);
             }
         });
@@ -167,6 +156,7 @@ export default function ProductDetailScreen() {
     const images = Array.isArray(product.images) ? product.images : [];
     const currentImage = images[selectedImageIndex] || images[0];
     const modalImage = images[modalImageIndex];
+
 
     const getImageUrl = (image: any) => {
         if (!image) return "";
@@ -249,7 +239,6 @@ export default function ProductDetailScreen() {
             <Modal visible={isImageModalVisible} transparent animationType="fade">
                 <StatusBar backgroundColor="rgba(0,0,0,0.9)" barStyle="light-content" />
                 <View style={styles.modalContainer}>
-                    {/* Header */}
                     <View style={styles.modalHeader}>
                         <TouchableOpacity onPress={closeImageModal} style={styles.modalCloseButton}>
                             <Ionicons name="close" size={28} color="#fff" />
@@ -259,16 +248,38 @@ export default function ProductDetailScreen() {
                         </Text>
                     </View>
 
-                    {/* Image with gestures */}
                     <View style={styles.modalImageContainer}>
                         <GestureDetector gesture={composedGesture}>
                             <Animated.Image
-                                // source={{ uri: modalImage }}
                                 source={{ uri: getImageUrl(modalImage) }}
                                 style={[styles.modalImage, animatedImageStyle]}
                                 resizeMode="contain"
                             />
                         </GestureDetector>
+
+                        {modalImageIndex > 0 && (
+                            <TouchableOpacity
+                                style={styles.modalNavLeft}
+                                onPress={() => {
+                                    setModalImageIndex(prev => prev - 1);
+                                    resetZoom();
+                                }}
+                            >
+                                <Ionicons name="chevron-back" size={32} color="#fff" />
+                            </TouchableOpacity>
+                        )}
+
+                        {modalImageIndex < images.length - 1 && (
+                            <TouchableOpacity
+                                style={styles.modalNavRight}
+                                onPress={() => {
+                                    setModalImageIndex(prev => prev + 1);
+                                    resetZoom();
+                                }}
+                            >
+                                <Ionicons name="chevron-forward" size={32} color="#fff" />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
             </Modal>
@@ -314,6 +325,16 @@ export default function ProductDetailScreen() {
                     />
                 </View>
             )}
+            <TouchableOpacity style={[styles.writeButton, { marginBottom: insets.bottom + 16 }]} onPress={() => router.push({
+                pathname: '/reviews/[id]',
+                params: {
+                    id: product.id,
+                    productType: 'ProductConTrungGiaDung',
+                },
+            })}>
+                <Ionicons name="create-outline" size={20} color="#fff" />
+                <Text style={styles.writeButtonText}>Xem đánh giá</Text>
+            </TouchableOpacity>
         </View>
     );
 
@@ -331,16 +352,6 @@ export default function ProductDetailScreen() {
                 {renderImageGallery()}
                 {renderProductInfo()}
             </ScrollView>
-            <TouchableOpacity style={styles.writeButton} onPress={() => router.push({
-                pathname: '/reviews/[id]',
-                params: {
-                    id: product._id,
-                    productType: 'ProductConTrungGiaDung',
-                },
-            })}>
-                <Ionicons name="create-outline" size={20} color="#fff" />
-                <Text style={styles.writeButtonText}>Xem đánh giá</Text>
-            </TouchableOpacity>
         </SafeAreaProvider>
     );
 }
@@ -353,20 +364,13 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     },
 
     writeButton: {
-        position: 'absolute',
-        bottom: 20,
-        right: 20,
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: theme.primary,
         paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 25,
-        elevation: 5,
-        shadowColor: theme.text,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
+        paddingVertical: 14,
+        borderRadius: 12,
         gap: 8,
     },
 
@@ -376,7 +380,6 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
         fontWeight: '600',
     },
 
-    // Header Styles
     header: {
         backgroundColor: theme.card,
         paddingHorizontal: 16,
@@ -507,8 +510,9 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backButton: {
         padding: 8,
         borderRadius: 20,
-        backgroundColor: theme.background + '80',
     },
+
+    
     ratingBadge: {
         position: 'absolute',
         bottom: 8,
@@ -672,5 +676,21 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
         fontSize: 16,
         color: theme.textSecondary,
         textAlign: 'center',
+    },
+    modalNavLeft: {
+        position: 'absolute',
+        left: 8,
+        top: '50%',
+        padding: 12,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        borderRadius: 24,
+    },
+    modalNavRight: {
+        position: 'absolute',
+        right: 8,
+        top: '50%',
+        padding: 12,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        borderRadius: 24,
     },
 });

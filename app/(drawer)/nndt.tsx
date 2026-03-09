@@ -267,35 +267,31 @@ export default function ProductListScreen() {
           activeOpacity={0.9}
         >
           <View style={styles.imageContainer}>
-            {firstImage ? (
-              <Image
-                source={{ uri: firstImage }}
-                style={styles.productImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.placeholderImage}>
-                <Ionicons
-                  name="leaf-outline"
-                  size={32}
-                  color={theme.textSecondary}
+            {/* View bên trong có overflow hidden để ảnh bo góc */}
+            <View style={styles.imageInner}>
+              {firstImage ? (
+                <Image
+                  source={{ uri: firstImage }}
+                  style={styles.productImage}
+                  resizeMode="cover"
                 />
-                <Text style={styles.placeholderText}>No Image</Text>
-              </View>
-            )}
+              ) : (
+                <View style={styles.placeholderImage}>
+                  <Ionicons name="leaf-outline" size={32} color={theme.textSecondary} />
+                  <Text style={styles.placeholderText}>No Image</Text>
+                </View>
+              )}
+            </View>
+
             {item.isMoi && (
-              <Animated.View
-                style={[styles.newBadge, { transform: [{ scale: scaleAnim }] }]}
-              >
+              <Animated.View style={[styles.newBadge, { transform: [{ scale: scaleAnim }] }]}>
                 <Text style={styles.newText}>MỚI</Text>
               </Animated.View>
             )}
+
             <TouchableOpacity
               onPress={handleFavoritePress}
-              style={[
-                styles.favoriteButton,
-                isFavourite && styles.favoriteButtonActive,
-              ]}
+              style={[styles.favoriteButton, isFavourite && styles.favoriteButtonActive]}
             >
               <Ionicons
                 name={isFavourite ? "heart" : "heart-outline"}
@@ -328,7 +324,6 @@ export default function ProductListScreen() {
       );
     },
     (prevProps, nextProps) => {
-      // Custom comparison function to ensure re-render when theme changes
       return prevProps.item.id === nextProps.item.id;
     },
   );
@@ -446,6 +441,13 @@ const createStyles = (theme: any, isDark: boolean) =>
           borderBottomWidth: 1,
           borderBottomColor: theme.border,
         }),
+    },
+
+    imageInner: {
+      position: 'absolute',
+      top: 0, left: 0, right: 0, bottom: 0,
+      borderRadius: 8,
+      overflow: 'hidden',
     },
 
     // Search Styles
@@ -616,7 +618,6 @@ const createStyles = (theme: any, isDark: boolean) =>
       height: CARD_WIDTH * 1.2,
       backgroundColor: theme.surface,
       borderRadius: 8,
-      overflow: "hidden",
     },
 
     productImage: {
@@ -644,16 +645,14 @@ const createStyles = (theme: any, isDark: boolean) =>
 
     newBadge: {
       position: "absolute",
-      top: -8,
-      left: -8,
+      top: -10,
+      left: -6,
       backgroundColor: theme.primary,
       borderRadius: 12,
       paddingHorizontal: 10,
       paddingVertical: 3,
-      shadowColor: "#000",
-      shadowOpacity: 0.2,
-      shadowRadius: 3,
-      elevation: 3,
+      zIndex: 10,
+      elevation: 5,
       borderWidth: 2,
       borderColor: theme.card,
     },
